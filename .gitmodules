@@ -1,0 +1,3 @@
+[submodule "qtframework"]
+	path = qtframework
+	url = https://github.com/beelzer/QTframework.git
