@@ -9,7 +9,7 @@ from qtframework import Application
 from qtframework.core import BaseWindow
 from qtframework.plugins import PluginManager
 from qtframework.utils import ResourceManager
-from qtframework.widgets import Button, VBox, Card, HBox
+from qtframework.widgets import Button, Card, VBox, HBox
 
 
 class MainWindow(BaseWindow):
@@ -29,7 +29,7 @@ class MainWindow(BaseWindow):
     def _setup_ui(self) -> None:
         """Setup the user interface."""
         # Create main layout
-        layout = VBox(spacing=16)
+        layout = VBox(spacing=16, margins=20)
 
         # Welcome card
         welcome_card = Card(title="Welcome to PServer Manager")
@@ -58,8 +58,11 @@ class MainWindow(BaseWindow):
         actions_card.set_content(actions_layout)
         layout.add_widget(actions_card)
 
+        # Add stretch to push content to top
+        layout.add_stretch()
+
         # Set central widget
-        self.set_content(layout)
+        self.setCentralWidget(layout)
 
     def _on_welcome_clicked(self) -> None:
         """Handle welcome button click."""
