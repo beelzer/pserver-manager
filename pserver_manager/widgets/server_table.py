@@ -2,21 +2,84 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from PySide6.QtCore import Qt, Signal
+from pathlib import Path
+
+from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QIcon, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
+    QMenu,
     QTableWidget,
     QTableWidgetItem,
+    QStyledItemDelegate,
 )
 
 from qtframework.widgets import VBox
+from qtframework.widgets.badge import Badge, BadgeVariant
+from pserver_manager.models import ServerStatus
+from pserver_manager.utils import ping_multiple_servers_sync
 
 
 if TYPE_CHECKING:
-    from pserver_manager.models import Server, ServerStatus
+    from pserver_manager.config_loader import ColumnDefinition, ServerDefinition
+    from pserver_manager.models import ServerStatus
+
+
+class ColoredTextDelegate(QStyledItemDelegate):
+    """Delegate that respects foreground color even with stylesheets."""
+
+    def paint(self, painter, option, index):
+        """Paint the item with custom foreground color."""
+        # Get the foreground color from item data
+        color_data = index.data(Qt.ItemDataRole.ForegroundRole)
+
+        if color_data:
+            # Save painter state
+            painter.save()
+
+            # Create a modified option with no text to draw background only
+            opt = option
+            self.initStyleOption(opt, index)
+
+            # Temporarily remove text so background draws without text
+            text = opt.text
+            opt.text = ""
+
+            # Draw background only (selection, hover, alternating colors, etc.)
+            opt.widget.style().drawControl(
+                opt.widget.style().ControlElement.CE_ItemViewItem,
+                opt,
+                painter,
+                opt.widget
+            )
+
+            # Now draw text with custom color
+            if hasattr(color_data, 'color'):
+                # It's a QBrush
+                painter.setPen(color_data.color())
+            else:
+                # Try to convert to QColor
+                try:
+                    painter.setPen(QColor(color_data))
+                except:
+                    pass
+
+            # Draw the text
+            if text:
+                text_rect = option.rect
+                text_rect.adjust(4, 0, -4, 0)  # Add padding
+                alignment = index.data(Qt.ItemDataRole.TextAlignmentRole)
+                if alignment is None:
+                    alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+                painter.drawText(text_rect, alignment, text)
+
+            painter.restore()
+        else:
+            # No custom color, use default painting
+            super().paint(painter, option, index)
 
 
 class ServerTable(VBox):
@@ -24,22 +87,20 @@ class ServerTable(VBox):
 
     server_selected = Signal(str)  # server_id
     server_double_clicked = Signal(str)  # server_id
+    edit_server_requested = Signal(str)  # server_id
 
     def __init__(self, parent=None) -> None:
         """Initialize the server table."""
         super().__init__(spacing=0, margins=0, parent=parent)
 
         self._setup_ui()
-        self._servers: dict[str, Server] = {}
+        self._servers: list[ServerDefinition] = []
+        self._columns: list[ColumnDefinition] = []
 
     def _setup_ui(self) -> None:
         """Set up the user interface."""
         # Create table
         self._table = QTableWidget()
-        self._table.setColumnCount(6)
-        self._table.setHorizontalHeaderLabels(
-            ["Server Name", "Status", "Address", "Players", "Uptime", "Version"]
-        )
 
         # Configure table behavior
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -49,29 +110,42 @@ class ServerTable(VBox):
         self._table.setSortingEnabled(True)
         self._table.verticalHeader().setVisible(False)
 
-        # Configure header
-        header = self._table.horizontalHeader()
-        header.setStretchLastSection(True)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        # Install custom delegate to handle colored text
+        self._table.setItemDelegate(ColoredTextDelegate(self._table))
 
         # Connect signals
         self._table.itemSelectionChanged.connect(self._on_selection_changed)
         self._table.itemDoubleClicked.connect(self._on_item_double_clicked)
+        self._table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._table.customContextMenuRequested.connect(self._show_context_menu)
 
         self.add_widget(self._table)
 
-    def set_servers(self, servers: list[Server]) -> None:
+    def set_columns(self, columns: list[ColumnDefinition]) -> None:
+        """Set the table columns.
+
+        Args:
+            columns: List of column definitions
+        """
+        self._columns = columns
+        self._table.setColumnCount(len(columns))
+        self._table.setHorizontalHeaderLabels([col.label for col in columns])
+
+        # Configure column widths
+        header = self._table.horizontalHeader()
+        for i, col in enumerate(columns):
+            if col.width == "stretch":
+                header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
+            else:
+                header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
+
+    def set_servers(self, servers: list[ServerDefinition]) -> None:
         """Set the list of servers to display.
 
         Args:
-            servers: List of servers to display
+            servers: List of server definitions to display
         """
-        self._servers = {server.id: server for server in servers}
+        self._servers = servers
         self._refresh_table()
 
     def _refresh_table(self) -> None:
@@ -79,79 +153,135 @@ class ServerTable(VBox):
         self._table.setSortingEnabled(False)
         self._table.setRowCount(0)
 
-        for row, server in enumerate(self._servers.values()):
+        for row, server in enumerate(self._servers):
             self._table.insertRow(row)
 
-            # Server name
-            name_item = QTableWidgetItem(server.name)
-            name_item.setData(Qt.ItemDataRole.UserRole, server.id)
-            self._table.setItem(row, 0, name_item)
+            # Populate columns based on column definitions
+            for col_idx, col in enumerate(self._columns):
+                value = self._get_column_value(server, col.id)
+                item = QTableWidgetItem(str(value))
 
-            # Status
-            status_item = QTableWidgetItem(self._format_status(server.status))
-            status_item.setData(Qt.ItemDataRole.UserRole, server.status.value)
-            self._set_status_color(status_item, server.status)
-            self._table.setItem(row, 1, status_item)
+                # Store server ID in first column
+                if col_idx == 0:
+                    item.setData(Qt.ItemDataRole.UserRole, server.id)
 
-            # Address
-            address_item = QTableWidgetItem(server.address)
-            self._table.setItem(row, 2, address_item)
+                    # Add server icon if available
+                    if server.icon:
+                        icon_path = Path(__file__).parent.parent / "icons" / server.icon
+                        if icon_path.exists():
+                            item.setIcon(QIcon(str(icon_path)))
 
-            # Players
-            players_item = QTableWidgetItem(server.player_count)
-            players_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self._table.setItem(row, 3, players_item)
+                # Special formatting for certain columns
+                if col.id in ["players", "uptime"]:
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            # Uptime
-            uptime_item = QTableWidgetItem(server.uptime)
-            uptime_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self._table.setItem(row, 4, uptime_item)
+                # Set status color with inline stylesheet
+                if col.id == "status":
+                    self._set_status_color_inline(item, server.status, server.ping_ms)
 
-            # Version
-            version_item = QTableWidgetItem(server.version_id)
-            self._table.setItem(row, 5, version_item)
+                self._table.setItem(row, col_idx, item)
 
         self._table.setSortingEnabled(True)
 
-    def _format_status(self, status: ServerStatus) -> str:
-        """Format status for display.
+    def _get_column_value(self, server: ServerDefinition, column_id: str) -> Any:
+        """Get the value for a specific column.
+
+        Args:
+            server: Server definition
+            column_id: Column identifier
+
+        Returns:
+            Column value
+        """
+        if column_id == "name":
+            return server.name
+        elif column_id == "status":
+            return self._format_status(server.status, server.ping_ms)
+        elif column_id == "address":
+            # Use host directly (may already include port)
+            return server.host
+        elif column_id == "players":
+            return f"{server.players}/{server.max_players}"
+        elif column_id == "uptime":
+            return server.uptime
+        elif column_id == "version":
+            return server.version_id
+        else:
+            # Get custom field from server data
+            value = server.get_field(column_id, "")
+            # Format boolean values
+            if isinstance(value, bool):
+                return "Yes" if value else "No"
+            return value
+
+    def _format_status(self, status: ServerStatus, ping_ms: int) -> str:
+        """Format status for display with ping.
 
         Args:
             status: Server status
+            ping_ms: Ping in milliseconds (-1 if not pinged)
 
         Returns:
-            Formatted status string
+            Formatted status string with ping
         """
-        from pserver_manager.models import ServerStatus
+        if status == ServerStatus.ONLINE and ping_ms >= 0:
+            return f"🟢 {ping_ms}ms"
+        elif status == ServerStatus.OFFLINE:
+            return "🔴 Offline"
+        elif status == ServerStatus.MAINTENANCE:
+            return "🟡 Maintenance"
+        elif status == ServerStatus.STARTING:
+            return "🟡 Starting"
+        else:
+            return f"● {status.value}"
 
-        status_map = {
-            ServerStatus.ONLINE: "● Online",
-            ServerStatus.OFFLINE: "● Offline",
-            ServerStatus.MAINTENANCE: "● Maintenance",
-            ServerStatus.STARTING: "● Starting",
-        }
-        return status_map.get(status, str(status.value))
-
-    def _set_status_color(self, item: QTableWidgetItem, status: ServerStatus) -> None:
-        """Set item color based on status.
+    def _set_status_color_inline(self, item: QTableWidgetItem, status: ServerStatus, ping_ms: int) -> None:
+        """Set status color using inline stylesheet.
 
         Args:
             item: Table item
             status: Server status
+            ping_ms: Ping in milliseconds (-1 if not pinged)
         """
-        from PySide6.QtGui import QColor
-        from pserver_manager.models import ServerStatus
+        try:
+            from PySide6.QtWidgets import QApplication
 
-        color_map = {
-            ServerStatus.ONLINE: QColor(46, 204, 113),  # Green
-            ServerStatus.OFFLINE: QColor(231, 76, 60),  # Red
-            ServerStatus.MAINTENANCE: QColor(241, 196, 15),  # Yellow
-            ServerStatus.STARTING: QColor(52, 152, 219),  # Blue
-        }
+            app = QApplication.instance()
+            if app and hasattr(app, "theme_manager"):
+                theme = app.theme_manager.get_current_theme()
+                if theme and theme.tokens:
+                    tokens = theme.tokens.semantic
 
-        color = color_map.get(status)
-        if color:
-            item.setForeground(color)
+                    # Determine color based on status and ping
+                    if status == ServerStatus.OFFLINE:
+                        color = tokens.feedback_error
+                    elif status == ServerStatus.MAINTENANCE:
+                        color = tokens.feedback_warning
+                    elif status == ServerStatus.STARTING:
+                        color = tokens.feedback_info
+                    elif status == ServerStatus.ONLINE:
+                        # Color based on ping latency
+                        if ping_ms < 150:
+                            color = tokens.feedback_success
+                        elif ping_ms < 250:
+                            color = tokens.feedback_warning
+                        else:
+                            color = tokens.feedback_error
+                    else:
+                        color = tokens.fg_primary
+
+                    # Use data role to store color for inline styling
+                    # This won't work directly, so we need a different approach
+                    from PySide6.QtGui import QColor, QBrush
+                    from PySide6.QtCore import Qt
+
+                    # Set font color
+                    item.setForeground(QBrush(QColor(color)))
+
+                    # ALSO set background to transparent explicitly to avoid issues
+                    item.setBackground(QBrush(Qt.GlobalColor.transparent))
+        except (AttributeError, ImportError):
+            pass
 
     def _on_selection_changed(self) -> None:
         """Handle selection change."""
@@ -171,27 +301,68 @@ class ServerTable(VBox):
         if server_id:
             self.server_double_clicked.emit(server_id)
 
-    def filter_by_game(self, game_id: str | None = None, version_id: str | None = None) -> None:
+    def _show_context_menu(self, pos) -> None:
+        """Show context menu for server.
+
+        Args:
+            pos: Menu position
+        """
+        item = self._table.itemAt(pos)
+        if not item:
+            return
+
+        server_id = item.data(Qt.ItemDataRole.UserRole)
+        if not server_id:
+            return
+
+        menu = QMenu(self._table)
+        edit_action = menu.addAction("Edit")
+
+        action = menu.exec(self._table.viewport().mapToGlobal(pos))
+        if action == edit_action:
+            self.edit_server_requested.emit(server_id)
+
+    def filter_by_game(
+        self,
+        all_servers: list[ServerDefinition],
+        game_id: str | None = None,
+        version_id: str | None = None,
+    ) -> None:
         """Filter servers by game and version.
 
         Args:
+            all_servers: Complete list of all servers
             game_id: Game ID to filter by
             version_id: Version ID to filter by
         """
         if game_id is None:
             # Show all servers
-            self._refresh_table()
+            self._servers = all_servers
+        else:
+            # Filter servers
+            filtered = []
+            for server in all_servers:
+                if server.game_id == game_id:
+                    if version_id is None or server.version_id == version_id:
+                        filtered.append(server)
+            self._servers = filtered
+
+        self._refresh_table()
+
+    def ping_servers(self) -> None:
+        """Ping all servers to update their status."""
+        if not self._servers:
             return
 
-        # Filter servers
-        filtered_servers = {}
-        for server in self._servers.values():
-            if server.game_id == game_id:
-                if version_id is None or server.version_id == version_id:
-                    filtered_servers[server.id] = server
+        # Ping servers and get status + latency results
+        ping_results = ping_multiple_servers_sync(self._servers, timeout=3.0)
 
-        # Temporarily replace servers and refresh
-        original_servers = self._servers
-        self._servers = filtered_servers
+        # Update server statuses and ping times
+        for server in self._servers:
+            if server.id in ping_results:
+                status, ping_ms = ping_results[server.id]
+                server.status = status
+                server.ping_ms = ping_ms
+
+        # Refresh table to show updated statuses
         self._refresh_table()
-        self._servers = original_servers

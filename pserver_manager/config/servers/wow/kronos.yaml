@@ -1,0 +1,14 @@
+id: kronos
+name: Kronos
+website: https://www.kronos-wow.com/
+discord: yzQSnNp
+host: login.twinstar-wow.com
+version_id: vanilla
+icon: servers/wow/kronos.png
+realm_name: ''
+realm_type: PvP
+rates: 1x
+population: Medium
+language: English
+uptime: ''
+description: Blizzlike Vanilla WoW experience

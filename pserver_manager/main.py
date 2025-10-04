@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import QSplitter
 
 from qtframework import Application
@@ -15,8 +15,10 @@ from qtframework.plugins import PluginManager
 from qtframework.utils import ResourceManager
 from qtframework.widgets import VBox
 
-from pserver_manager.models import Game, GameVersion, Server, ServerStatus
+from pserver_manager.config_loader import ColumnDefinition, ConfigLoader, GameDefinition
+from pserver_manager.models import Game
 from pserver_manager.widgets import GameSidebar, ServerTable
+from pserver_manager.widgets.server_editor import ServerEditor
 
 
 class MainWindow(BaseWindow):
@@ -29,9 +31,11 @@ class MainWindow(BaseWindow):
             application: Application instance
         """
         # Initialize data before parent init (which calls _setup_ui)
-        self._games: list[Game] = []
-        self._servers: list[Server] = []
-        self._load_sample_data()
+        self._config_loader = ConfigLoader(Path(__file__).parent / "config")
+        self._game_defs: list[GameDefinition] = []
+        self._all_servers = []
+        self._current_game: GameDefinition | None = None
+        self._load_config()
 
         super().__init__(application=application)
         self.setWindowTitle("PServer Manager")
@@ -50,7 +54,9 @@ class MainWindow(BaseWindow):
 
         # Create sidebar
         self._sidebar = GameSidebar()
-        self._sidebar.set_games(self._games)
+        games = [gd.to_game() for gd in self._game_defs]
+        self._sidebar.set_games(games)
+        self._sidebar.all_servers_selected.connect(self._on_all_servers_selected)
         self._sidebar.game_selected.connect(self._on_game_selected)
         self._sidebar.version_selected.connect(self._on_version_selected)
         self._sidebar.setMinimumWidth(250)
@@ -58,9 +64,10 @@ class MainWindow(BaseWindow):
 
         # Create server table
         self._server_table = ServerTable()
-        self._server_table.set_servers(self._servers)
+        self._show_all_servers()  # Show all servers by default
         self._server_table.server_selected.connect(self._on_server_selected)
         self._server_table.server_double_clicked.connect(self._on_server_double_clicked)
+        self._server_table.edit_server_requested.connect(self._on_edit_server)
 
         # Add to splitter
         splitter.addWidget(self._sidebar)
@@ -73,6 +80,51 @@ class MainWindow(BaseWindow):
 
         # Set central widget
         self.setCentralWidget(main_layout)
+
+    def _create_theme_menu(self, theme_menu) -> None:
+        """Create theme submenu with available themes.
+
+        Args:
+            theme_menu: Theme menu to populate
+        """
+        theme_manager = self.application.theme_manager
+        theme_names = theme_manager.list_themes()
+
+        # Create action group for exclusive theme selection
+        theme_action_group = QActionGroup(self)
+        theme_action_group.setExclusive(True)
+
+        current_theme = theme_manager.get_current_theme()
+
+        for theme_name in theme_names:
+            theme_info = theme_manager.get_theme_info(theme_name)
+            display_name = (
+                theme_info.get("display_name", theme_name.replace("_", " ").title())
+                if theme_info
+                else theme_name.replace("_", " ").title()
+            )
+
+            action = QAction(display_name, self)
+            action.setCheckable(True)
+            action.setData(theme_name)
+
+            # Check if this is the current theme
+            if current_theme and current_theme.name == theme_name:
+                action.setChecked(True)
+
+            # Connect to apply theme
+            action.triggered.connect(lambda checked, tn=theme_name: self._apply_theme(tn))
+
+            theme_action_group.addAction(action)
+            theme_menu.addAction(action)
+
+    def _apply_theme(self, theme_name: str) -> None:
+        """Apply selected theme.
+
+        Args:
+            theme_name: Theme name to apply
+        """
+        self.application.theme_manager.set_theme(theme_name)
 
     def _create_menu_bar(self) -> None:
         """Create the menu bar."""
@@ -91,6 +143,11 @@ class MainWindow(BaseWindow):
         refresh_action.triggered.connect(self._on_refresh)
         file_menu.addAction(refresh_action)
 
+        ping_action = QAction("&Ping Servers", self)
+        ping_action.setShortcut("Ctrl+P")
+        ping_action.triggered.connect(self._on_ping_servers)
+        file_menu.addAction(ping_action)
+
         file_menu.addSeparator()
 
         exit_action = QAction("E&xit", self)
@@ -105,6 +162,12 @@ class MainWindow(BaseWindow):
         show_all_action.setShortcut("Ctrl+A")
         show_all_action.triggered.connect(self._on_show_all)
         view_menu.addAction(show_all_action)
+
+        view_menu.addSeparator()
+
+        # Theme submenu
+        theme_menu = view_menu.addMenu("&Theme")
+        self._create_theme_menu(theme_menu)
 
         # Settings menu
         settings_menu = menubar.addMenu("&Settings")
@@ -121,134 +184,32 @@ class MainWindow(BaseWindow):
         about_action.triggered.connect(self._on_about)
         help_menu.addAction(about_action)
 
-    def _load_sample_data(self) -> None:
-        """Load sample data for demonstration."""
-        # Create games with versions
-        self._games = [
-            Game(
-                id="minecraft",
-                name="Minecraft",
-                versions=[
-                    GameVersion(id="1.20", name="1.20.x"),
-                    GameVersion(id="1.19", name="1.19.x"),
-                    GameVersion(id="1.18", name="1.18.x"),
-                    GameVersion(id="modded", name="Modded"),
-                ],
-            ),
-            Game(
-                id="valheim",
-                name="Valheim",
-                versions=[
-                    GameVersion(id="vanilla", name="Vanilla"),
-                    GameVersion(id="mistlands", name="Mistlands"),
-                ],
-            ),
-            Game(
-                id="terraria",
-                name="Terraria",
-                versions=[
-                    GameVersion(id="1.4.4", name="1.4.4 (Current)"),
-                    GameVersion(id="modded", name="tModLoader"),
-                ],
-            ),
-            Game(
-                id="ark",
-                name="ARK: Survival Evolved",
-                versions=[
-                    GameVersion(id="island", name="The Island"),
-                    GameVersion(id="ragnarok", name="Ragnarok"),
-                    GameVersion(id="genesis", name="Genesis"),
-                ],
-            ),
+    def _load_config(self) -> None:
+        """Load configuration from YAML files."""
+        self._game_defs = self._config_loader.load_games()
+        self._all_servers = self._config_loader.load_servers()
+
+    def _show_all_servers(self) -> None:
+        """Show all servers with generic columns."""
+        self._current_game = None
+
+        # Use generic columns for all servers view
+        generic_columns = [
+            ColumnDefinition("name", "Server Name", "stretch"),
+            ColumnDefinition("status", "Status", "content"),
+            ColumnDefinition("address", "Address", "content"),
+            ColumnDefinition("players", "Players", "content"),
+            ColumnDefinition("uptime", "Uptime", "content"),
+            ColumnDefinition("version", "Version", "content"),
         ]
 
-        # Create sample servers
-        self._servers = [
-            Server(
-                id="mc1",
-                name="Survival Main",
-                game_id="minecraft",
-                version_id="1.20",
-                status=ServerStatus.ONLINE,
-                host="mc.example.com",
-                port=25565,
-                players=42,
-                max_players=100,
-                uptime="3d 14h",
-            ),
-            Server(
-                id="mc2",
-                name="Creative Build",
-                game_id="minecraft",
-                version_id="1.20",
-                status=ServerStatus.ONLINE,
-                host="creative.example.com",
-                port=25566,
-                players=18,
-                max_players=50,
-                uptime="1d 8h",
-            ),
-            Server(
-                id="mc3",
-                name="Modded Adventure",
-                game_id="minecraft",
-                version_id="modded",
-                status=ServerStatus.MAINTENANCE,
-                host="modded.example.com",
-                port=25567,
-                players=0,
-                max_players=60,
-                uptime="0h 0m",
-            ),
-            Server(
-                id="vh1",
-                name="Viking Adventures",
-                game_id="valheim",
-                version_id="mistlands",
-                status=ServerStatus.ONLINE,
-                host="valheim.example.com",
-                port=2456,
-                players=8,
-                max_players=10,
-                uptime="7d 2h",
-            ),
-            Server(
-                id="vh2",
-                name="New World",
-                game_id="valheim",
-                version_id="vanilla",
-                status=ServerStatus.STARTING,
-                host="valheim2.example.com",
-                port=2457,
-                players=0,
-                max_players=10,
-                uptime="0h 2m",
-            ),
-            Server(
-                id="tr1",
-                name="Hardmode Expert",
-                game_id="terraria",
-                version_id="1.4.4",
-                status=ServerStatus.ONLINE,
-                host="terraria.example.com",
-                port=7777,
-                players=6,
-                max_players=8,
-                uptime="12h 34m",
-            ),
-            Server(
-                id="ark1",
-                name="PvE Ragnarok",
-                game_id="ark",
-                version_id="ragnarok",
-                status=ServerStatus.ONLINE,
-                host="ark.example.com",
-                port=27015,
-                players=24,
-                max_players=70,
-                uptime="5d 18h",
-            ),
-        ]
+        self._server_table.set_columns(generic_columns)
+        self._server_table.set_servers(self._all_servers)
+
+    def _on_all_servers_selected(self) -> None:
+        """Handle all servers selection."""
+        print("All servers selected")
+        self._show_all_servers()
 
     def _on_game_selected(self, game_id: str) -> None:
         """Handle game selection.
@@ -257,7 +218,19 @@ class MainWindow(BaseWindow):
             game_id: Selected game ID
         """
         print(f"Game selected: {game_id}")
-        self._server_table.filter_by_game(game_id)
+
+        # Find game definition
+        game_def = self._config_loader.get_game_by_id(game_id, self._game_defs)
+        if not game_def:
+            return
+
+        self._current_game = game_def
+
+        # Set columns specific to this game
+        self._server_table.set_columns(game_def.columns)
+
+        # Filter servers for this game
+        self._server_table.filter_by_game(self._all_servers, game_id)
 
     def _on_version_selected(self, game_id: str, version_id: str) -> None:
         """Handle version selection.
@@ -267,7 +240,19 @@ class MainWindow(BaseWindow):
             version_id: Version ID
         """
         print(f"Version selected: {game_id} - {version_id}")
-        self._server_table.filter_by_game(game_id, version_id)
+
+        # Find game definition
+        game_def = self._config_loader.get_game_by_id(game_id, self._game_defs)
+        if not game_def:
+            return
+
+        self._current_game = game_def
+
+        # Set columns specific to this game
+        self._server_table.set_columns(game_def.columns)
+
+        # Filter servers for this game and version
+        self._server_table.filter_by_game(self._all_servers, game_id, version_id)
 
     def _on_server_selected(self, server_id: str) -> None:
         """Handle server selection.
@@ -285,6 +270,44 @@ class MainWindow(BaseWindow):
         """
         print(f"Server double-clicked: {server_id}")
 
+    def _on_edit_server(self, server_id: str) -> None:
+        """Handle edit server request.
+
+        Args:
+            server_id: Server ID to edit
+        """
+        # Find the server and game
+        server = None
+        for s in self._all_servers:
+            if s.id == server_id:
+                server = s
+                break
+
+        if not server:
+            print(f"Server not found: {server_id}")
+            return
+
+        # Find the game definition
+        game = self._config_loader.get_game_by_id(server.game_id, self._game_defs)
+        if not game:
+            print(f"Game not found: {server.game_id}")
+            return
+
+        # Open editor dialog
+        editor = ServerEditor(server, game, self)
+        if editor.exec():
+            # Save changes
+            if editor.save_to_file():
+                print(f"Server {server_id} saved successfully")
+                # Reload config and refresh display
+                self._load_config()
+                if self._current_game:
+                    self._on_game_selected(self._current_game.id)
+                else:
+                    self._show_all_servers()
+            else:
+                print(f"Failed to save server {server_id}")
+
     def _on_add_server(self) -> None:
         """Handle add server button click."""
         print("Add server clicked")
@@ -292,7 +315,14 @@ class MainWindow(BaseWindow):
     def _on_refresh(self) -> None:
         """Handle refresh button click."""
         print("Refresh clicked")
-        self._server_table.set_servers(self._servers)
+        self._load_config()
+        self._show_all_servers()
+
+    def _on_ping_servers(self) -> None:
+        """Handle ping servers action."""
+        print("Pinging servers...")
+        self._server_table.ping_servers()
+        print("Ping complete")
 
     def _on_settings(self) -> None:
         """Handle settings button click."""
@@ -301,7 +331,7 @@ class MainWindow(BaseWindow):
     def _on_show_all(self) -> None:
         """Handle show all servers action."""
         print("Show all servers")
-        self._server_table.filter_by_game(None)
+        self._show_all_servers()
 
     def _on_about(self) -> None:
         """Handle about action."""
@@ -330,6 +360,9 @@ def main() -> int:
         org_domain="pservermanager.local",
         resource_manager=resource_manager,
     )
+
+    # Set Fusion style for consistent widget rendering
+    app.setStyle("Fusion")
 
     # Setup plugin manager
     plugin_manager = PluginManager(application=app)

@@ -1,0 +1,156 @@
+# World of Warcraft Private Server Definition
+id: wow
+name: "World of Warcraft"
+icon: "games/wow.png"
+
+# WoW Expansions/Versions
+versions:
+  - id: vanilla
+    name: "Vanilla (1.12)"
+    description: "Classic WoW"
+    icon: "versions/wow-vanilla.png"
+
+  - id: tbc
+    name: "The Burning Crusade (2.4.3)"
+    description: "First expansion"
+    icon: "versions/wow-tbc.png"
+
+  - id: wotlk
+    name: "Wrath of the Lich King (3.3.5)"
+    description: "Second expansion"
+    icon: "versions/wow-wotlk.png"
+
+  - id: cata
+    name: "Cataclysm (4.3.4)"
+    description: "Third expansion"
+    icon: "versions/wow-cata.png"
+
+  - id: mop
+    name: "Mists of Pandaria (5.4.8)"
+    description: "Fourth expansion"
+    icon: "versions/wow-mop.png"
+
+  - id: wod
+    name: "Warlords of Draenor (6.2.4)"
+    description: "Fifth expansion"
+    icon: "versions/wow-wod.png"
+
+  - id: legion
+    name: "Legion (7.3.5)"
+    description: "Sixth expansion"
+    icon: "versions/wow-legion.png"
+
+  - id: bfa
+    name: "Battle for Azeroth (8.3)"
+    description: "Seventh expansion"
+    icon: "versions/wow-bfa.png"
+
+# Table columns for WoW servers
+table_columns:
+  - id: name
+    label: "Server Name"
+    width: stretch
+
+  - id: status
+    label: "Status"
+    width: content
+
+  - id: website
+    label: "Website"
+    width: content
+
+  - id: discord
+    label: "Discord"
+    width: content
+
+  - id: realm_name
+    label: "Realm Name"
+    width: content
+
+  - id: realm_type
+    label: "Type"
+    width: content
+
+  - id: rates
+    label: "Rates"
+    width: content
+
+  - id: population
+    label: "Population"
+    width: content
+
+  - id: version
+    label: "Expansion"
+    width: content
+
+  - id: language
+    label: "Language"
+    width: content
+
+  - id: uptime
+    label: "Uptime"
+    width: content
+
+# Required fields for WoW server configs
+server_schema:
+  - name: name
+    type: string
+    required: true
+
+  - name: website
+    type: string
+    required: true
+
+  - name: discord
+    type: string
+    required: false
+    default: ""
+    description: "Discord invite code (e.g., 'ShEQcFJd')"
+
+  - name: host
+    type: string
+    required: false
+    default: ""
+    description: "Realmlist host (can include port, e.g., 'logon.server.com:3724')"
+
+  - name: version_id
+    type: string
+    required: true
+
+  - name: status
+    type: string
+    required: true
+    values: [online, offline, maintenance, starting]
+
+  - name: realm_name
+    type: string
+    required: false
+    default: ""
+    description: "Optional realm name for realmlist (e.g., 'RetroWoW')"
+
+  - name: realm_type
+    type: string
+    default: "PvE"
+    description: "PvP, PvE, or RP"
+
+  - name: rates
+    type: string
+    default: "1x"
+    description: "XP/Drop rates (e.g., 1x, 5x, Blizzlike)"
+
+  - name: population
+    type: string
+    default: "Medium"
+    description: "Low, Medium, High, or actual number"
+
+  - name: language
+    type: string
+    default: "English"
+
+  - name: uptime
+    type: string
+    default: "Unknown"
+
+  - name: description
+    type: string
+    default: ""

@@ -22,6 +22,7 @@ class GameVersion:
     id: str
     name: str
     description: str = ""
+    icon: str = ""
 
 
 @dataclass
