@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 
 
 def normalize_uptime(uptime_str: str) -> str:
-    """Normalize uptime to consistent short format (e.g., '4d12h35m').
+    """Normalize uptime to consistent short format (e.g., '3mo 4d 12h 35m').
 
     Args:
         uptime_str: Uptime string in various formats
@@ -24,12 +24,15 @@ def normalize_uptime(uptime_str: str) -> str:
         return uptime_str
 
     # Extract numbers and their units
-    # Matches patterns like: "4 d. 12 h. 35 m. 56 s.", "5 days 4 hours 51 minutes", etc.
+    # Matches patterns like: "4 d. 12 h. 35 m. 56 s.", "5 days 4 hours 51 minutes", "3 months 2 days", etc.
+    months = re.search(r'(\d+)\s*(?:mo(?:nths?)?\.?)', uptime_str, re.IGNORECASE)
     days = re.search(r'(\d+)\s*(?:d(?:ays?)?\.?)', uptime_str, re.IGNORECASE)
     hours = re.search(r'(\d+)\s*(?:h(?:ours?)?\.?)', uptime_str, re.IGNORECASE)
     minutes = re.search(r'(\d+)\s*(?:m(?:in(?:utes?)?)?\.?)', uptime_str, re.IGNORECASE)
 
     parts = []
+    if months:
+        parts.append(f"{months.group(1)}mo")
     if days:
         parts.append(f"{days.group(1)}d")
     if hours:
@@ -37,7 +40,7 @@ def normalize_uptime(uptime_str: str) -> str:
     if minutes:
         parts.append(f"{minutes.group(1)}m")
 
-    return ''.join(parts) if parts else uptime_str
+    return ' '.join(parts) if parts else uptime_str
 
 
 if TYPE_CHECKING:
