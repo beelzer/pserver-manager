@@ -1,254 +1,254 @@
 name: wow
 display_name: World of Warcraft
-description: Classic WoW UI-inspired theme with dark stone, gold accents, and alliance blue
+description: Dark WoW-inspired theme with deep backgrounds, vibrant gold and alliance blue
 author: PServer Manager
-version: 1.0.0
+version: 1.1.0
 
 tokens:
   primitive:
-    # Stone/Gray palette (dark UI frames)
-    gray_50: "#0A0A0C"   # darkest stone
-    gray_100: "#141418"  # very dark stone
-    gray_200: "#1E1E24"  # dark stone
-    gray_300: "#282830"  # medium dark stone
-    gray_400: "#32323C"  # medium stone
-    gray_500: "#3C3C48"  # medium light stone
-    gray_600: "#505058"  # light stone
-    gray_700: "#646470"  # lighter stone
-    gray_800: "#787888"  # very light stone
-    gray_900: "#A0A0B0"  # near white stone
-    gray_950: "#C8C8D8"  # lightest stone
+    # Dark brown stone backgrounds (WoW UI stone texture)
+    gray_50: "#0F0B08"   # almost black with brown tint
+    gray_100: "#1C1610"  # very dark brown-stone
+    gray_200: "#282218"  # dark brown-stone
+    gray_300: "#342E20"  # medium dark brown-stone
+    gray_400: "#403A28"  # medium brown-stone
+    gray_500: "#4D4630"  # medium light brown-stone
+    gray_600: "#5A5238"  # light brown-stone
+    gray_700: "#6E6648"  # lighter brown-stone
+    gray_800: "#8A8268"  # very light brown-stone
+    gray_900: "#AFA998"  # near white with brown tint
+    gray_950: "#D5D2C8"  # lightest with brown tint
 
-    # Alliance Blue - Primary
-    primary_50: "#0A1420"
-    primary_100: "#0F1E30"
-    primary_200: "#1A2D48"
-    primary_300: "#243C5C"
-    primary_400: "#2E4B70"
-    primary_500: "#3D5A80"  # classic alliance blue
-    primary_600: "#5078A8"  # bright alliance blue
-    primary_700: "#6B92C0"  # light alliance blue
-    primary_800: "#86ACD8"  # very light alliance blue
-    primary_900: "#A1C6F0"
-    primary_950: "#BCE0FF"
+    # Vibrant Alliance Blue - Primary
+    primary_50: "#0A1828"
+    primary_100: "#142840"
+    primary_200: "#1E3858"
+    primary_300: "#284870"
+    primary_400: "#325888"
+    primary_500: "#4A7FBF"  # vibrant alliance blue
+    primary_600: "#6698D4"  # bright blue
+    primary_700: "#82B1E9"  # light blue
+    primary_800: "#9ECAFF"  # very light blue
+    primary_900: "#BAD9FF"
+    primary_950: "#D6E8FF"
 
-    # Gold - Secondary (WoW gold coin color)
-    secondary_50: "#1A1408"
-    secondary_100: "#2A2010"
-    secondary_200: "#3D2E18"
-    secondary_300: "#503C20"
-    secondary_400: "#705428"
-    secondary_500: "#906C30"  # rich gold
-    secondary_600: "#B8883C"  # bright gold
-    secondary_700: "#D4A450"  # lighter gold
-    secondary_800: "#E8C078"  # very light gold
-    secondary_900: "#F4D8A0"
-    secondary_950: "#FFF0C8"
+    # Rich Gold - Secondary
+    secondary_50: "#2A1F08"
+    secondary_100: "#3F2E0C"
+    secondary_200: "#543D10"
+    secondary_300: "#6A4C14"
+    secondary_400: "#7F5B18"
+    secondary_500: "#D4A736"  # rich vibrant gold
+    secondary_600: "#E6BB4D"  # bright gold
+    secondary_700: "#F2CF64"  # lighter gold
+    secondary_800: "#FFE37B"  # very light gold
+    secondary_900: "#FFED9C"
+    secondary_950: "#FFF7BD"
 
     # Horde Red - Error
-    error_50: "#1A0808"
-    error_100: "#2A1010"
-    error_200: "#3D1818"
-    error_300: "#502020"
-    error_400: "#702828"
-    error_500: "#903030"  # horde red
-    error_600: "#B83C3C"  # bright horde red
-    error_700: "#D45050"
-    error_800: "#E87878"
-    error_900: "#F4A0A0"
-    error_950: "#FFC8C8"
+    error_50: "#2A0808"
+    error_100: "#3F0C0C"
+    error_200: "#541010"
+    error_300: "#6A1414"
+    error_400: "#7F1818"
+    error_500: "#CC3333"  # vibrant horde red
+    error_600: "#E04D4D"
+    error_700: "#F26767"
+    error_800: "#FF8181"
+    error_900: "#FF9B9B"
+    error_950: "#FFB5B5"
 
     # Fel Green - Warning
-    warning_50: "#0C1408"
-    warning_100: "#182010"
-    warning_200: "#243018"
-    warning_300: "#304020"
-    warning_400: "#486030"
-    warning_500: "#608040"  # fel/warlock green
-    warning_600: "#78A050"
-    warning_700: "#90C068"
-    warning_800: "#A8D888"
-    warning_900: "#C0F0A8"
-    warning_950: "#D8FFC8"
+    warning_50: "#1A2408"
+    warning_100: "#28360C"
+    warning_200: "#364810"
+    warning_300: "#445A14"
+    warning_400: "#526C18"
+    warning_500: "#8FBF3F"  # vibrant fel green
+    warning_600: "#A6D459"
+    warning_700: "#BCE973"
+    warning_800: "#D2FF8D"
+    warning_900: "#E0FFA7"
+    warning_950: "#EEFFC1"
 
     # Arcane Purple - Info
-    info_50: "#140A1A"
-    info_100: "#20142A"
-    info_200: "#301E3D"
-    info_300: "#402850"
-    info_400: "#603870"
-    info_500: "#804890"  # arcane/mage purple
-    info_600: "#A060B8"
-    info_700: "#C078D4"
-    info_800: "#D898E8"
-    info_900: "#F0B8F4"
-    info_950: "#FFD8FF"
+    info_50: "#1F0A28"
+    info_100: "#2E143F"
+    info_200: "#3D1E54"
+    info_300: "#4C286A"
+    info_400: "#5B327F"
+    info_500: "#9B59D9"  # vibrant arcane purple
+    info_600: "#B073E6"
+    info_700: "#C58DF2"
+    info_800: "#DAA7FF"
+    info_900: "#E8C1FF"
+    info_950: "#F6DBFF"
 
     # Nature Green - Success
-    success_50: "#081408"
-    success_100: "#102010"
-    success_200: "#183018"
-    success_300: "#204020"
-    success_400: "#306030"
-    success_500: "#408040"  # druid/nature green
-    success_600: "#50A050"
-    success_700: "#68C068"
-    success_800: "#88D888"
-    success_900: "#A8F0A8"
-    success_950: "#C8FFC8"
+    success_50: "#0A2408"
+    success_100: "#14360C"
+    success_200: "#1E4810"
+    success_300: "#285A14"
+    success_400: "#326C18"
+    success_500: "#5FBF3F"  # vibrant nature green
+    success_600: "#79D459"
+    success_700: "#93E973"
+    success_800: "#ADFF8D"
+    success_900: "#C7FFA7"
+    success_950: "#E1FFC1"
 
-    white: "#E8E8F0"
-    black: "#0A0A0C"
+    white: "#F5F7FA"
+    black: "#0D0E10"
     transparent: "transparent"
 
   semantic:
-    # Backgrounds - dark stone UI
-    bg_primary: "#141418"
-    bg_secondary: "#1E1E24"
-    bg_tertiary: "#282830"
-    bg_elevated: "#1E1E24"
-    bg_overlay: "rgba(20, 20, 24, 0.9)"
+    # Dark brown stone backgrounds for WoW aesthetic
+    bg_primary: "#1C1610"
+    bg_secondary: "#282218"
+    bg_tertiary: "#342E20"
+    bg_elevated: "#282218"
+    bg_overlay: "rgba(15, 11, 8, 0.92)"
 
-    # Foreground - light text with gold tint
-    fg_primary: "#E8E8F0"
-    fg_secondary: "#C8C8D8"
-    fg_tertiary: "#A0A0B0"
-    fg_on_accent: "#0A0A0C"
-    fg_on_dark: "#E8E8F0"
-    fg_on_light: "#0A0A0C"
+    # High contrast text
+    fg_primary: "#F5F7FA"
+    fg_secondary: "#D5D9E5"
+    fg_tertiary: "#B0B5C5"
+    fg_on_accent: "#0D0E10"
+    fg_on_dark: "#F5F7FA"
+    fg_on_light: "#0D0E10"
 
-    # Interactive - alliance blue and gold
-    action_primary: "#5078A8"
-    action_primary_hover: "#6B92C0"
-    action_primary_active: "#3D5A80"
-    action_secondary: "#B8883C"
-    action_secondary_hover: "#D4A450"
-    action_secondary_active: "#906C30"
+    # Vibrant interactive colors
+    action_primary: "#4A7FBF"
+    action_primary_hover: "#6698D4"
+    action_primary_active: "#325888"
+    action_secondary: "#D4A736"
+    action_secondary_hover: "#E6BB4D"
+    action_secondary_active: "#7F5B18"
 
-    # Feedback
-    feedback_success: "#50A050"
-    feedback_warning: "#78A050"
-    feedback_error: "#B83C3C"
-    feedback_info: "#A060B8"
+    # Feedback colors
+    feedback_success: "#5FBF3F"
+    feedback_warning: "#8FBF3F"
+    feedback_error: "#CC3333"
+    feedback_info: "#9B59D9"
 
-    # Borders - subtle stone borders with gold highlights
-    border_default: "#32323C"
-    border_subtle: "#282830"
-    border_strong: "#505058"
-    border_focus: "#B8883C"
+    # Borders with better contrast
+    border_default: "#403A28"
+    border_subtle: "#342E20"
+    border_strong: "#5A5238"
+    border_focus: "#D4A736"
 
     # States
-    state_hover: "#282830"
-    state_selected: "#3D5A80"
-    state_disabled: "#32323C"
-    state_focus: "#B8883C"
+    state_hover: "#342E20"
+    state_selected: "#4A7FBF"
+    state_disabled: "#403A28"
+    state_focus: "#D4A736"
 
   components:
-    # Buttons - gold primary, stone secondary
-    button_primary_bg: "#B8883C"
-    button_primary_fg: "#0A0A0C"
-    button_primary_border: "#D4A450"
-    button_secondary_bg: "#32323C"
-    button_secondary_fg: "#E8E8F0"
-    button_secondary_border: "#505058"
+    # Vibrant gold buttons
+    button_primary_bg: "#D4A736"
+    button_primary_fg: "#0D0E10"
+    button_primary_border: "#E6BB4D"
+    button_secondary_bg: "#403A28"
+    button_secondary_fg: "#F5F7FA"
+    button_secondary_border: "#5A5238"
 
-    # Inputs - dark stone with gold focus
-    input_bg: "#1E1E24"
-    input_fg: "#E8E8F0"
-    input_border: "#32323C"
-    input_placeholder: "#646470"
+    # Dark inputs with gold focus
+    input_bg: "#282218"
+    input_fg: "#F5F7FA"
+    input_border: "#403A28"
+    input_placeholder: "#6E6648"
 
-    # Tables - stone frames with blue highlights
-    table_header_bg: "#1E1E24"
-    table_header_fg: "#E8E8F0"
-    table_row_bg: "#141418"
-    table_row_bg_alt: "#1E1E24"
-    table_row_hover: "#282830"
-    table_row_selected: "#3D5A80"
-    table_border: "#32323C"
+    # High contrast tables
+    table_header_bg: "#282218"
+    table_header_fg: "#F5F7FA"
+    table_row_bg: "#1C1610"
+    table_row_bg_alt: "#282218"
+    table_row_hover: "#342E20"
+    table_row_selected: "#4A7FBF"
+    table_border: "#403A28"
 
-    # Menus - dark stone
-    menu_bg: "#1E1E24"
-    menu_fg: "#E8E8F0"
-    menu_hover_bg: "#282830"
-    menu_hover_fg: "#E8E8F0"
-    menu_selected_bg: "#3D5A80"
-    menu_selected_fg: "#E8E8F0"
+    # Dark menus
+    menu_bg: "#282218"
+    menu_fg: "#F5F7FA"
+    menu_hover_bg: "#342E20"
+    menu_hover_fg: "#F5F7FA"
+    menu_selected_bg: "#4A7FBF"
+    menu_selected_fg: "#F5F7FA"
 
-    # Scrollbars - stone
-    scrollbar_bg: "#1E1E24"
-    scrollbar_thumb: "#32323C"
-    scrollbar_thumb_hover: "#3C3C48"
+    # Scrollbars
+    scrollbar_bg: "#282218"
+    scrollbar_thumb: "#403A28"
+    scrollbar_thumb_hover: "#4D4630"
 
-    # Tabs - stone with gold active
-    tab_bg: "#1E1E24"
-    tab_fg: "#A0A0B0"
-    tab_active_bg: "#141418"
-    tab_active_fg: "#B8883C"
-    tab_hover_bg: "#282830"
-    tab_hover_fg: "#C8C8D8"
+    # Tabs with gold active state
+    tab_bg: "#282218"
+    tab_fg: "#AFA998"
+    tab_active_bg: "#1C1610"
+    tab_active_fg: "#D4A736"
+    tab_hover_bg: "#342E20"
+    tab_hover_fg: "#D5D2C8"
 
-    # Charts - class colors inspired
-    chart_1: "#5078A8"  # warrior/alliance blue
-    chart_2: "#B8883C"  # paladin/gold
-    chart_3: "#50A050"  # hunter/druid green
-    chart_4: "#B83C3C"  # death knight/horde red
-    chart_5: "#A060B8"  # mage/warlock purple
-    chart_6: "#78A050"  # shaman green
-    chart_grid: "#32323C"
-    chart_axis: "#646470"
+    # Vibrant chart colors (class-inspired)
+    chart_1: "#4A7FBF"  # warrior blue
+    chart_2: "#D4A736"  # paladin gold
+    chart_3: "#5FBF3F"  # hunter/druid green
+    chart_4: "#CC3333"  # death knight red
+    chart_5: "#9B59D9"  # mage/warlock purple
+    chart_6: "#8FBF3F"  # shaman green
+    chart_grid: "#403A28"
+    chart_axis: "#6E6648"
 
-    # Badges - using WoW colors
-    badge_primary_bg: "#5078A8"
-    badge_primary_fg: "#E8E8F0"
-    badge_primary_border: "#6B92C0"
+    # High contrast badges
+    badge_primary_bg: "#4A7FBF"
+    badge_primary_fg: "#F5F7FA"
+    badge_primary_border: "#6698D4"
 
-    badge_success_bg: "#50A050"
-    badge_success_fg: "#0A0A0C"
-    badge_success_border: "#68C068"
+    badge_success_bg: "#5FBF3F"
+    badge_success_fg: "#0D0E10"
+    badge_success_border: "#79D459"
 
-    badge_warning_bg: "#78A050"
-    badge_warning_fg: "#0A0A0C"
-    badge_warning_border: "#90C068"
+    badge_warning_bg: "#8FBF3F"
+    badge_warning_fg: "#0D0E10"
+    badge_warning_border: "#A6D459"
 
-    badge_danger_bg: "#B83C3C"
-    badge_danger_fg: "#E8E8F0"
-    badge_danger_border: "#D45050"
+    badge_danger_bg: "#CC3333"
+    badge_danger_fg: "#F5F7FA"
+    badge_danger_border: "#E04D4D"
 
-    badge_info_bg: "#A060B8"
-    badge_info_fg: "#E8E8F0"
-    badge_info_border: "#C078D4"
+    badge_info_bg: "#9B59D9"
+    badge_info_fg: "#F5F7FA"
+    badge_info_border: "#B073E6"
 
-    badge_light_bg: "#C8C8D8"
-    badge_light_fg: "#0A0A0C"
-    badge_light_border: "#E8E8F0"
+    badge_light_bg: "#D5D9E5"
+    badge_light_fg: "#0D0E10"
+    badge_light_border: "#F5F7FA"
 
-    badge_dark_bg: "#141418"
-    badge_dark_fg: "#E8E8F0"
-    badge_dark_border: "#32323C"
+    badge_dark_bg: "#1C1610"
+    badge_dark_fg: "#F5F7FA"
+    badge_dark_border: "#403A28"
 
   typography:
     font_family_code: "Consolas"
 
   syntax:
-    keyword: "#5078A8"      # alliance blue
-    class_name: "#B8883C"   # gold
-    function: "#6B92C0"     # light blue
-    string: "#50A050"       # nature green
-    comment: "#646470"      # muted stone
-    number: "#D4A450"       # light gold
-    operator: "#5078A8"     # alliance blue
-    decorator: "#A060B8"    # arcane purple
-    constant: "#3D5A80"     # dark alliance blue
-    variable: "#C8C8D8"     # light stone
-    parameter: "#E8C078"    # very light gold
-    type: "#B8883C"         # gold
-    namespace: "#6B92C0"    # light blue
-    error: "#B83C3C"        # horde red
-    warning: "#78A050"      # fel green
-    info: "#A060B8"         # arcane purple
+    keyword: "#4A7FBF"      # alliance blue
+    class_name: "#D4A736"   # gold
+    function: "#6698D4"     # light blue
+    string: "#5FBF3F"       # nature green
+    comment: "#6E6648"      # muted brown-stone
+    number: "#E6BB4D"       # bright gold
+    operator: "#4A7FBF"     # alliance blue
+    decorator: "#9B59D9"    # arcane purple
+    constant: "#325888"     # dark blue
+    variable: "#D5D9E5"     # light slate
+    parameter: "#FFE37B"    # very light gold
+    type: "#D4A736"         # gold
+    namespace: "#6698D4"    # light blue
+    error: "#CC3333"        # horde red
+    warning: "#8FBF3F"      # fel green
+    info: "#9B59D9"         # arcane purple
 
 custom_styles:
-  'QGroupBox[search-match="true"]': "border: 2px solid #B8883C; border-radius: 4px;"
-  'QLabel[search-match="true"]': "background-color: rgba(184, 136, 60, 0.2); border-radius: 2px; padding: 2px;"
-  'QPushButton[search-match="true"]': "border: 2px solid #B8883C;"
+  'QGroupBox[search-match="true"]': "border: 2px solid #D4A736; border-radius: 4px;"
+  'QLabel[search-match="true"]': "background-color: rgba(212, 167, 54, 0.2); border-radius: 2px; padding: 2px;"
+  'QPushButton[search-match="true"]': "border: 2px solid #D4A736;"

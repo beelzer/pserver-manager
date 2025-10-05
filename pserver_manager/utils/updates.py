@@ -58,6 +58,9 @@ class UpdateInfo:
     updated_servers: list[str]  # Server IDs that have updates
     conflicts: list[str]  # Server IDs with conflicts (user modified bundled server)
     schema_migration_needed: bool  # Settings schema needs migration
+    new_themes: list[str]  # Theme names that are new
+    updated_themes: list[str]  # Theme names that have updates
+    theme_conflicts: list[str]  # Theme names with conflicts (user modified bundled theme)
 
 
 class ServerUpdateChecker:
@@ -65,15 +68,25 @@ class ServerUpdateChecker:
 
     APP_VERSION = "1.0.0"  # Should be updated with each release
 
-    def __init__(self, bundled_dir: Path, user_dir: Path):
+    def __init__(
+        self,
+        bundled_dir: Path,
+        user_dir: Path,
+        bundled_themes_dir: Path | None = None,
+        user_themes_dir: Path | None = None,
+    ):
         """Initialize update checker.
 
         Args:
             bundled_dir: Directory with bundled server configs
             user_dir: Directory with user server configs
+            bundled_themes_dir: Directory with bundled themes (optional)
+            user_themes_dir: Directory with user themes (optional)
         """
         self.bundled_dir = bundled_dir
         self.user_dir = user_dir
+        self.bundled_themes_dir = bundled_themes_dir
+        self.user_themes_dir = user_themes_dir
 
     @staticmethod
     def compute_content_hash(server_data: dict[str, Any]) -> str:
@@ -136,6 +149,88 @@ class ServerUpdateChecker:
 
         return data, metadata
 
+    def check_for_theme_updates(self) -> tuple[list[str], list[str], list[str]]:
+        """Check for theme updates.
+
+        Returns:
+            Tuple of (new_themes, updated_themes, theme_conflicts)
+        """
+        new_themes = []
+        updated_themes = []
+        theme_conflicts = []
+
+        # Skip if theme directories not configured
+        if not self.bundled_themes_dir or not self.user_themes_dir:
+            return new_themes, updated_themes, theme_conflicts
+
+        if not self.bundled_themes_dir.exists():
+            return new_themes, updated_themes, theme_conflicts
+
+        # Get all bundled themes
+        for theme_file in self.bundled_themes_dir.glob("*.yaml"):
+            theme_name = theme_file.stem
+            user_theme_file = self.user_themes_dir / theme_file.name
+
+            # Load bundled theme
+            with open(theme_file, "r", encoding="utf-8") as f:
+                bundled_theme = yaml.safe_load(f)
+
+            bundled_version = bundled_theme.get("version", "1.0.0")
+
+            if not user_theme_file.exists():
+                # New theme available
+                new_themes.append(theme_name)
+            else:
+                # Theme exists - check version and content
+                with open(user_theme_file, "r", encoding="utf-8") as f:
+                    user_theme = yaml.safe_load(f)
+
+                user_version = user_theme.get("version", "1.0.0")
+
+                # Check if content differs
+                bundled_hash = self.compute_content_hash(bundled_theme)
+                user_hash = self.compute_content_hash(user_theme)
+
+                if bundled_hash != user_hash:
+                    # Content differs - check if it's an update or user modification
+                    if bundled_version != user_version:
+                        # Versions differ - compare to see if bundled is newer
+                        if self._is_version_newer(bundled_version, user_version):
+                            updated_themes.append(theme_name)
+                        # else: user has newer/same version but different content (user customization)
+                    else:
+                        # Same version but different content
+                        # This is likely a bundled update (e.g., bug fix in same version)
+                        # Offer as update
+                        updated_themes.append(theme_name)
+
+        return new_themes, updated_themes, theme_conflicts
+
+    @staticmethod
+    def _is_version_newer(version1: str, version2: str) -> bool:
+        """Check if version1 is newer than version2.
+
+        Args:
+            version1: First version string (e.g., "1.2.0")
+            version2: Second version string (e.g., "1.1.0")
+
+        Returns:
+            True if version1 > version2
+        """
+        try:
+            v1_parts = [int(x) for x in version1.split(".")]
+            v2_parts = [int(x) for x in version2.split(".")]
+
+            # Pad shorter version with zeros
+            max_len = max(len(v1_parts), len(v2_parts))
+            v1_parts += [0] * (max_len - len(v1_parts))
+            v2_parts += [0] * (max_len - len(v2_parts))
+
+            return v1_parts > v2_parts
+        except (ValueError, AttributeError):
+            # If version parsing fails, assume not newer
+            return False
+
     def check_for_updates(self) -> UpdateInfo:
         """Check for available updates.
 
@@ -197,11 +292,17 @@ class ServerUpdateChecker:
                         # Clean update - bundled version changed, user didn't modify
                         updated_servers.append(server_id)
 
+        # Check for theme updates
+        new_themes, updated_themes, theme_conflicts = self.check_for_theme_updates()
+
         return UpdateInfo(
             new_servers=new_servers,
             updated_servers=updated_servers,
             conflicts=conflicts,
             schema_migration_needed=False,  # TODO: Implement schema migration detection
+            new_themes=new_themes,
+            updated_themes=updated_themes,
+            theme_conflicts=theme_conflicts,
         )
 
     def import_server(self, server_id: str, overwrite: bool = False) -> bool:
@@ -267,3 +368,65 @@ class ServerUpdateChecker:
             True if successful
         """
         return self.import_server(server_id, overwrite=True)
+
+    def import_theme(self, theme_name: str, overwrite: bool = False) -> bool:
+        """Import a bundled theme to user directory.
+
+        Args:
+            theme_name: Theme name (e.g., "wow")
+            overwrite: Whether to overwrite existing file
+
+        Returns:
+            True if successful
+        """
+        try:
+            if not self.bundled_themes_dir or not self.user_themes_dir:
+                return False
+
+            bundled_file = self.bundled_themes_dir / f"{theme_name}.yaml"
+            user_file = self.user_themes_dir / f"{theme_name}.yaml"
+
+            if not bundled_file.exists():
+                return False
+
+            if user_file.exists() and not overwrite:
+                return False
+
+            # Ensure user directory exists
+            user_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Copy theme file
+            import shutil
+
+            shutil.copy2(bundled_file, user_file)
+
+            return True
+        except Exception as e:
+            print(f"Error importing theme {theme_name}: {e}")
+            return False
+
+    def update_theme(self, theme_name: str) -> bool:
+        """Update a theme to latest bundled version.
+
+        Args:
+            theme_name: Theme name to update
+
+        Returns:
+            True if successful
+        """
+        return self.import_theme(theme_name, overwrite=True)
+
+    def import_all_new_themes(self) -> int:
+        """Import all new bundled themes.
+
+        Returns:
+            Number of themes imported
+        """
+        new_themes, _, _ = self.check_for_theme_updates()
+        count = 0
+
+        for theme_name in new_themes:
+            if self.import_theme(theme_name):
+                count += 1
+
+        return count

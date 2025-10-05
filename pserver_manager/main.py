@@ -92,7 +92,11 @@ class MainWindow(BaseWindow):
         # Initialize update checker
         bundled_servers_dir = Path(__file__).parent / "config" / "servers"
         user_servers_dir = self._app_paths.get_servers_dir()
-        self._update_checker = ServerUpdateChecker(bundled_servers_dir, user_servers_dir)
+        bundled_themes_dir = Path(__file__).parent / "themes"
+        user_themes_dir = self._app_paths.get_themes_dir()
+        self._update_checker = ServerUpdateChecker(
+            bundled_servers_dir, user_servers_dir, bundled_themes_dir, user_themes_dir
+        )
 
         # Check for updates on startup (after window is shown)
         from PySide6.QtCore import QTimer
@@ -486,18 +490,26 @@ class MainWindow(BaseWindow):
                 len(update_info.new_servers) > 0
                 or len(update_info.updated_servers) > 0
                 or len(update_info.conflicts) > 0
+                or len(update_info.new_themes) > 0
+                or len(update_info.updated_themes) > 0
+                or len(update_info.theme_conflicts) > 0
             )
 
             if has_updates:
                 dialog = UpdateDialog(update_info, self._update_checker, self)
                 if dialog.exec():
-                    # Updates were applied - reload config
+                    # Updates were applied - reload config and themes
                     self._load_config()
                     if self._current_game:
                         self._on_game_selected(self._current_game.id)
                     else:
                         self._show_all_servers()
-                    self._notifications.success("Updates Applied", "Server configurations updated")
+
+                    # Reload themes if any theme updates were applied
+                    if update_info.updated_themes or update_info.new_themes:
+                        self._reload_themes()
+
+                    self._notifications.success("Updates Applied", "Configurations updated")
         except Exception as e:
             print(f"Error checking for updates: {e}")
 
@@ -511,22 +523,56 @@ class MainWindow(BaseWindow):
                 len(update_info.new_servers) > 0
                 or len(update_info.updated_servers) > 0
                 or len(update_info.conflicts) > 0
+                or len(update_info.new_themes) > 0
+                or len(update_info.updated_themes) > 0
+                or len(update_info.theme_conflicts) > 0
             )
 
             if has_updates:
                 dialog = UpdateDialog(update_info, self._update_checker, self)
                 if dialog.exec():
-                    # Updates were applied - reload config
+                    # Updates were applied - reload config and themes
                     self._load_config()
                     if self._current_game:
                         self._on_game_selected(self._current_game.id)
                     else:
                         self._show_all_servers()
-                    self._notifications.success("Updates Applied", "Server configurations updated")
+
+                    # Reload themes if any theme updates were applied
+                    if update_info.updated_themes or update_info.new_themes:
+                        self._reload_themes()
+
+                    self._notifications.success("Updates Applied", "Configurations updated")
             else:
-                self._notifications.info("No Updates", "Your server configurations are up to date")
+                self._notifications.info("No Updates", "Your configurations are up to date")
         except Exception as e:
             self._notifications.error("Update Check Failed", f"Error: {str(e)}")
+
+    def _reload_themes(self) -> None:
+        """Reload themes after updates."""
+        try:
+            from PySide6.QtWidgets import QApplication
+
+            # Get current theme name
+            current_theme = self._config_manager.get("ui.theme", "auto")
+
+            # Get application instance
+            app = QApplication.instance()
+            if not app:
+                return
+
+            # Reload themes in theme manager
+            theme_manager = app.theme_manager
+            theme_manager.reload_themes()
+
+            # Reapply current theme
+            theme_manager.set_theme(current_theme)
+
+            # Regenerate and apply stylesheet
+            stylesheet = theme_manager.get_stylesheet()
+            app.setStyleSheet(stylesheet)
+        except Exception as e:
+            self._notifications.error("Theme Reload Failed", f"Error: {str(e)}")
 
 
 def main() -> int:

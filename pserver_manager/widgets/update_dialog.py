@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 class UpdateDialog(QDialog):
-    """Dialog for reviewing and applying server updates."""
+    """Dialog for reviewing and applying server and theme updates."""
 
     def __init__(
         self,
@@ -46,7 +46,7 @@ class UpdateDialog(QDialog):
         self.selected_updates = []
         self.conflict_resolutions = {}  # server_id -> "keep" or "update"
 
-        self.setWindowTitle("Server Updates Available")
+        self.setWindowTitle("Updates Available")
         self.setMinimumSize(700, 600)
 
         self._setup_ui()
@@ -74,6 +74,16 @@ class UpdateDialog(QDialog):
             conflicts_group = self._create_conflicts_section()
             layout.addWidget(conflicts_group)
 
+        # New Themes Section
+        if self.update_info.new_themes:
+            new_themes_group = self._create_new_themes_section()
+            layout.addWidget(new_themes_group)
+
+        # Updated Themes Section
+        if self.update_info.updated_themes:
+            updated_themes_group = self._create_updated_themes_section()
+            layout.addWidget(updated_themes_group)
+
         # Buttons
         button_layout = HBox()
         button_layout.add_stretch()
@@ -98,9 +108,13 @@ class UpdateDialog(QDialog):
         if self.update_info.new_servers:
             parts.append(f"<b>{len(self.update_info.new_servers)}</b> new server(s)")
         if self.update_info.updated_servers:
-            parts.append(f"<b>{len(self.update_info.updated_servers)}</b> update(s)")
+            parts.append(f"<b>{len(self.update_info.updated_servers)}</b> server update(s)")
         if self.update_info.conflicts:
-            parts.append(f"<b>{len(self.update_info.conflicts)}</b> conflict(s)")
+            parts.append(f"<b>{len(self.update_info.conflicts)}</b> server conflict(s)")
+        if self.update_info.new_themes:
+            parts.append(f"<b>{len(self.update_info.new_themes)}</b> new theme(s)")
+        if self.update_info.updated_themes:
+            parts.append(f"<b>{len(self.update_info.updated_themes)}</b> theme update(s)")
 
         summary_text = "Updates available: " + ", ".join(parts) if parts else "No updates available"
 
@@ -250,6 +264,62 @@ class UpdateDialog(QDialog):
         if choice:
             self.conflict_resolutions[server_id] = choice
 
+    def _create_new_themes_section(self) -> QGroupBox:
+        """Create new themes section.
+
+        Returns:
+            GroupBox with new themes
+        """
+        group = QGroupBox(f"New Themes ({len(self.update_info.new_themes)})")
+        layout = QVBoxLayout(group)
+
+        info = QLabel(
+            "<i>These themes are included with this version but not in your collection. "
+            "Select which ones to import:</i>"
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        self.new_themes_list = QListWidget()
+
+        for theme_name in self.update_info.new_themes:
+            item = QListWidgetItem(theme_name)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Checked)  # Default: import all
+            self.new_themes_list.addItem(item)
+
+        layout.addWidget(self.new_themes_list)
+
+        return group
+
+    def _create_updated_themes_section(self) -> QGroupBox:
+        """Create updated themes section.
+
+        Returns:
+            GroupBox with updated themes
+        """
+        group = QGroupBox(f"Updated Themes ({len(self.update_info.updated_themes)})")
+        layout = QVBoxLayout(group)
+
+        info = QLabel(
+            "<i>These bundled themes have been updated. "
+            "Select which ones to update:</i>"
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        self.updated_themes_list = QListWidget()
+
+        for theme_name in self.update_info.updated_themes:
+            item = QListWidgetItem(theme_name)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Checked)  # Default: update all
+            self.updated_themes_list.addItem(item)
+
+        layout.addWidget(self.updated_themes_list)
+
+        return group
+
     def _apply_updates(self) -> None:
         """Apply selected updates."""
         success_count = 0
@@ -284,6 +354,28 @@ class UpdateDialog(QDialog):
                     success_count += 1
                 else:
                     error_count += 1
+
+        # Import new themes
+        if hasattr(self, "new_themes_list"):
+            for i in range(self.new_themes_list.count()):
+                item = self.new_themes_list.item(i)
+                if item.checkState() == Qt.CheckState.Checked:
+                    theme_name = item.text()
+                    if self.update_checker.import_theme(theme_name):
+                        success_count += 1
+                    else:
+                        error_count += 1
+
+        # Update themes
+        if hasattr(self, "updated_themes_list"):
+            for i in range(self.updated_themes_list.count()):
+                item = self.updated_themes_list.item(i)
+                if item.checkState() == Qt.CheckState.Checked:
+                    theme_name = item.text()
+                    if self.update_checker.update_theme(theme_name):
+                        success_count += 1
+                    else:
+                        error_count += 1
 
         # Show result and close
         if success_count > 0:
