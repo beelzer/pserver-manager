@@ -190,11 +190,11 @@ class ServerTable(VBox):
                             item.setToolTip(" | ".join(tooltip_parts))
 
                 # Special formatting for certain columns
-                if col.id in ["players", "uptime"]:
+                if col.id in ["players", "uptime", "status"]:
                     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-                # Set status color with inline stylesheet
-                if col.id == "status":
+                # Set status color with inline stylesheet (only if pinged)
+                if col.id == "status" and server.ping_ms != -1:
                     self._set_status_color_inline(item, server.status, server.ping_ms)
 
                 self._table.setItem(row, col_idx, item)
