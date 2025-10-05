@@ -11,6 +11,18 @@ realm_type: PvP
 rates: 1x
 population: High
 language: English
-uptime: Unknown
 description: Nighthaven PvP is Progressive Vanilla WoW Gaming with Blizz-like content.
   It's Vanilla as you remember it.
+scraping:
+  url: https://elysium-project.org/main/stat
+  use_browser: false
+  total:
+    regex: 'Online</th>\s*<td[^>]*>(\d+)'
+  alliance:
+    regex: 'alliance_small\.png[^>]*>\s*(\d+)'
+  horde:
+    regex: 'horde_small\.png[^>]*>\s*(\d+)'
+  max_players:
+    regex: 'Online Max</th>\s*<td[^>]*>(\d+)'
+  uptime:
+    regex: '<td>([^<]*\sd\.[^<]*)</td>'

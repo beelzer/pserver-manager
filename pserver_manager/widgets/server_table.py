@@ -21,7 +21,7 @@ from qtframework.widgets import VBox
 from qtframework.widgets.badge import Badge, BadgeVariant
 from qtframework.widgets.advanced import ConfirmDialog
 from pserver_manager.models import ServerStatus
-from pserver_manager.utils import ping_multiple_servers_sync
+from pserver_manager.utils import ping_multiple_servers_sync, scrape_servers_sync
 from pserver_manager.utils.paths import get_app_paths
 
 
@@ -178,6 +178,17 @@ class ServerTable(VBox):
                         if icon_path.exists():
                             item.setIcon(QIcon(str(icon_path)))
 
+                # Add tooltip for player count showing faction breakdown
+                if col.id == "players":
+                    if server.alliance_count is not None or server.horde_count is not None:
+                        tooltip_parts = []
+                        if server.alliance_count is not None:
+                            tooltip_parts.append(f"Alliance: {server.alliance_count}")
+                        if server.horde_count is not None:
+                            tooltip_parts.append(f"Horde: {server.horde_count}")
+                        if tooltip_parts:
+                            item.setToolTip(" | ".join(tooltip_parts))
+
                 # Special formatting for certain columns
                 if col.id in ["players", "uptime"]:
                     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -208,7 +219,11 @@ class ServerTable(VBox):
             # Use host directly (may already include port)
             return server.host
         elif column_id == "players":
-            return f"{server.players}/{server.max_players}"
+            if server.players == -1:
+                return "-"
+            if server.max_players > 0:
+                return f"{server.players}/{server.max_players}"
+            return str(server.players)
         elif column_id == "uptime":
             return server.uptime
         elif column_id == "version":
@@ -231,6 +246,10 @@ class ServerTable(VBox):
         Returns:
             Formatted status string with ping
         """
+        # Show "-" if not pinged yet
+        if ping_ms == -1:
+            return "-"
+
         if status == ServerStatus.ONLINE and ping_ms >= 0:
             return f"🟢 {ping_ms}ms"
         elif status == ServerStatus.OFFLINE:
@@ -381,4 +400,38 @@ class ServerTable(VBox):
                 server.ping_ms = ping_ms
 
         # Refresh table to show updated statuses
+        self._refresh_table()
+
+    def fetch_player_counts(self) -> None:
+        """Fetch player counts for all servers."""
+        if not self._servers:
+            return
+
+        # Filter servers that have scraping config (support both new and old key names)
+        servers_with_config = [
+            s for s in self._servers if s.data.get("scraping") or s.data.get("player_count")
+        ]
+
+        if not servers_with_config:
+            return
+
+        # Scrape server information
+        scrape_results = scrape_servers_sync(servers_with_config, timeout=10.0)
+
+        # Update server player counts
+        for server in servers_with_config:
+            if server.id in scrape_results:
+                result = scrape_results[server.id]
+                if result.success:
+                    if result.total is not None:
+                        server.players = result.total
+                    if result.max_players is not None:
+                        server.max_players = result.max_players
+                    if result.uptime is not None:
+                        server.uptime = result.uptime
+                    # Store faction counts for tooltip
+                    server.alliance_count = result.alliance
+                    server.horde_count = result.horde
+
+        # Refresh table to show updated counts
         self._refresh_table()

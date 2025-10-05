@@ -113,6 +113,12 @@ server_schema:
     default: ""
     description: "Realmlist host (can include port, e.g., 'logon.server.com:3724')"
 
+  - name: patchlist
+    type: string
+    required: false
+    default: ""
+    description: "Optional patchlist host (e.g., 'logon.server.com')"
+
   - name: version_id
     type: string
     required: true
@@ -146,10 +152,6 @@ server_schema:
   - name: language
     type: string
     default: "English"
-
-  - name: uptime
-    type: string
-    default: "Unknown"
 
   - name: description
     type: string

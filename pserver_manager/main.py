@@ -265,6 +265,11 @@ class MainWindow(BaseWindow):
         ping_action.triggered.connect(self._on_ping_servers)
         file_menu.addAction(ping_action)
 
+        fetch_info_action = QAction("Fetch Server &Info", self)
+        fetch_info_action.setShortcut("Ctrl+L")
+        fetch_info_action.triggered.connect(self._on_fetch_player_counts)
+        file_menu.addAction(fetch_info_action)
+
         file_menu.addSeparator()
 
         exit_action = QAction("E&xit", self)
@@ -474,6 +479,12 @@ class MainWindow(BaseWindow):
         self._notifications.info("Pinging Servers", "Checking server status...")
         self._server_table.ping_servers()
         self._notifications.success("Ping Complete", "Server status updated")
+
+    def _on_fetch_player_counts(self) -> None:
+        """Handle fetch server info action."""
+        self._notifications.info("Fetching Server Info", "Retrieving player counts, uptime, and more...")
+        self._server_table.fetch_player_counts()
+        self._notifications.success("Fetch Complete", "Server information updated")
 
     def _on_settings(self) -> None:
         """Handle settings button click."""

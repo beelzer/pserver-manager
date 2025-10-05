@@ -88,11 +88,14 @@ class ServerDefinition:
         self.id: str = f"{self.game_id}.{data['id']}"
         self.name: str = data["name"]
         self.host: str = data.get("host", "")
+        self.patchlist: str = data.get("patchlist", "")
         self.version_id: str = data["version_id"]
         self.status: ServerStatus = ServerStatus(data.get("status", "offline"))
-        self.players: int = data.get("players", 0)
+        self.players: int = data.get("players", -1)
         self.max_players: int = data.get("max_players", 0)
-        self.uptime: str = data.get("uptime", "0h 0m")
+        self.alliance_count: int | None = None  # Populated by player count scraping
+        self.horde_count: int | None = None  # Populated by player count scraping
+        self.uptime: str = data.get("uptime", "-")
         self.description: str = data.get("description", "")
         self.icon: str = data.get("icon", "")
         self.ping_ms: int = -1  # -1 means not pinged yet

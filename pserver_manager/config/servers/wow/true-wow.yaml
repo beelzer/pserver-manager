@@ -11,5 +11,13 @@ realm_type: PvP
 rates: 1x, 2x, 3x
 population: Medium
 language: English
-uptime: Unknown
 description: The oldest and most dedicated WoW server Community since 2010.
+scraping:
+  url: https://truewow.org/status
+  use_browser: false
+  alliance:
+    regex: 'alliance\.gif[^>]*>[^<]*</th>\s*<th>(\d+)'
+  horde:
+    regex: 'horde\.gif[^>]*>[^<]*</th>\s*<th>(\d+)'
+  uptime:
+    regex: 'Uptime</th>\s*<td[^>]*>([^<]+)</td>'

@@ -8,6 +8,11 @@ from pserver_manager.utils.server_ping import (
     ping_server,
     ping_server_sync,
 )
+from pserver_manager.utils.server_scraper import (
+    ServerScrapeResult,
+    scrape_servers,
+    scrape_servers_sync,
+)
 from pserver_manager.utils.updates import ServerUpdateChecker, UpdateInfo
 
 __all__ = [
@@ -17,6 +22,9 @@ __all__ = [
     "ping_server_sync",
     "ping_multiple_servers",
     "ping_multiple_servers_sync",
+    "ServerScrapeResult",
+    "scrape_servers",
+    "scrape_servers_sync",
     "ServerSchemaMigrator",
     "migrate_user_servers",
     "ServerUpdateChecker",
