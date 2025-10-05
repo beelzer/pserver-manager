@@ -1,0 +1,14 @@
+id: true-wow
+name: TrueWoW
+website: https://truewow.org/
+discord: GqPJkbz
+host: login.truewow.org
+version_id: wotlk
+icon: servers/wow/true-wow.png
+realm_name:
+realm_type: PvP
+rates: 1x, 2x, 3x
+population: Medium
+language: English
+uptime:
+description: The oldest and most dedicated WoW server Community since 2010.
