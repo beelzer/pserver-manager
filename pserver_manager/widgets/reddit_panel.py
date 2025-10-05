@@ -28,13 +28,6 @@ class RedditPanel(VBox):
         self._subreddit = ""
         self._is_collapsed = False
 
-        # Create toggle button
-        self._toggle_button = QPushButton("◀ Reddit")
-        self._toggle_button.setCheckable(True)
-        self._toggle_button.setMaximumHeight(30)
-        self._toggle_button.clicked.connect(self._on_toggle)
-        self.add_widget(self._toggle_button)
-
         # Create loading bar (slim, indeterminate progress)
         self._loading_bar = QProgressBar()
         self._loading_bar.setMaximumHeight(4)
@@ -45,7 +38,7 @@ class RedditPanel(VBox):
         self.add_widget(self._loading_bar)
 
         # Create content container with increased spacing
-        self._content = VBox(spacing=15, margins=(0, 10, 0, 0))
+        self._content = VBox(spacing=15, margins=(0, 5, 0, 0))
 
         # Subreddit label
         self._subreddit_label = QLabel("r/wowservers")
@@ -91,25 +84,11 @@ class RedditPanel(VBox):
             self.hide()
             self.hide_loading()
 
-    def _on_toggle(self, checked: bool) -> None:
-        """Handle toggle button click.
-
-        Args:
-            checked: Button checked state
-        """
-        self._is_collapsed = checked
-        if checked:
-            # Collapse: hide content and change button
-            self._content.hide()
-            self._toggle_button.setText("▶")
-            self.setMaximumWidth(50)
-        else:
-            # Expand: show content and change button
-            self._content.show()
-            self._toggle_button.setText("◀ Reddit")
-            self.setMaximumWidth(400)
-
-        self.collapsed_changed.emit(checked)
+    def _on_collapse_internal(self) -> None:
+        """Handle internal collapse (from close button)."""
+        self._is_collapsed = True
+        self.hide()
+        self.collapsed_changed.emit(True)
 
     def is_collapsed(self) -> bool:
         """Check if panel is collapsed.
@@ -120,16 +99,16 @@ class RedditPanel(VBox):
         return self._is_collapsed
 
     def collapse(self) -> None:
-        """Collapse the panel."""
+        """Collapse the panel (hides it completely)."""
         if not self._is_collapsed:
-            self._toggle_button.setChecked(True)
-            self._on_toggle(True)
+            self._on_collapse_internal()
 
     def expand(self) -> None:
-        """Expand the panel."""
+        """Expand the panel (shows it)."""
         if self._is_collapsed:
-            self._toggle_button.setChecked(False)
-            self._on_toggle(False)
+            self._is_collapsed = False
+            self.show()
+            self.collapsed_changed.emit(False)
 
     def show_loading(self) -> None:
         """Show loading indicator."""

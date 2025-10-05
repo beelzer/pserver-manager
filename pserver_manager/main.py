@@ -15,6 +15,7 @@ from qtframework.core import BaseWindow
 from qtframework.plugins import PluginManager
 from qtframework.utils import ResourceManager
 from qtframework.widgets import VBox
+from qtframework.widgets.buttons import Button, ButtonSize, ButtonVariant
 from qtframework.widgets.advanced import NotificationManager
 from qtframework.widgets.advanced.notifications import NotificationPosition
 
@@ -147,8 +148,8 @@ class MainWindow(BaseWindow):
 
     def _setup_ui(self) -> None:
         """Setup the user interface."""
-        # Create menu bar
-        self._create_menu_bar()
+        # Create menu bar (store reference for later use)
+        menubar = self._create_menu_bar()
 
         # Create main container
         main_layout = VBox(spacing=0, margins=0)
@@ -177,6 +178,21 @@ class MainWindow(BaseWindow):
         # Create Reddit panel
         self._reddit_panel = RedditPanel()
         self._reddit_panel.hide()  # Hidden by default
+        self._reddit_panel.collapsed_changed.connect(self._on_reddit_panel_collapsed_changed)
+
+        # Create Reddit menubar button (toggles panel visibility)
+        # Must be created before adding to splitter and set as menubar corner widget
+        self._reddit_menubar_button = Button(
+            "▶ Reddit",
+            size=ButtonSize.COMPACT,
+            variant=ButtonVariant.OUTLINE
+        )
+        self._reddit_menubar_button.clicked.connect(self._on_reddit_menubar_button_clicked)
+        self._reddit_menubar_button.setToolTip("Show Reddit panel")
+        # Make button fit menubar height - override compact size
+        self._reddit_menubar_button.setStyleSheet("padding: 2px 8px; min-height: 0px; max-height: 22px;")
+        self._reddit_menubar_button.hide()  # Hidden by default
+        menubar.setCornerWidget(self._reddit_menubar_button, Qt.Corner.TopRightCorner)
 
         # Add to splitter
         splitter.addWidget(self._sidebar)
@@ -255,8 +271,12 @@ class MainWindow(BaseWindow):
         config_file = self._app_paths.get_settings_file()
         self._config_manager.save(config_file)
 
-    def _create_menu_bar(self) -> None:
-        """Create the menu bar."""
+    def _create_menu_bar(self):
+        """Create the menu bar.
+
+        Returns:
+            The menubar instance
+        """
         menubar = self.menuBar()
 
         # File menu
@@ -318,6 +338,8 @@ class MainWindow(BaseWindow):
         about_action.triggered.connect(self._on_about)
         help_menu.addAction(about_action)
 
+        return menubar
+
     def _load_config(self) -> None:
         """Load configuration from YAML files."""
         self._game_defs = self._config_loader.load_games()
@@ -343,8 +365,10 @@ class MainWindow(BaseWindow):
     def _on_all_servers_selected(self) -> None:
         """Handle all servers selection."""
         self._show_all_servers()
-        # Hide Reddit panel when showing all servers
+        # Hide Reddit panel and menubar button when showing all servers
         self._reddit_panel.hide()
+        self._reddit_menubar_button.hide()
+        self._reddit_panel._is_collapsed = False
 
     def _on_game_selected(self, game_id: str) -> None:
         """Handle game selection.
@@ -370,8 +394,15 @@ class MainWindow(BaseWindow):
             self._reddit_panel.set_subreddit(game_def.reddit)
             # Fetch Reddit posts
             self._reddit_helper.start_fetching(game_def.reddit, limit=15, sort="hot")
+            # Show menubar button and expand panel
+            self._reddit_menubar_button.show()
+            if self._reddit_panel.is_collapsed():
+                self._reddit_panel.expand()
         else:
+            # Hide panel and menubar button when no Reddit available
             self._reddit_panel.hide()
+            self._reddit_menubar_button.hide()
+            self._reddit_panel._is_collapsed = False
 
     def _on_version_selected(self, game_id: str, version_id: str) -> None:
         """Handle version selection.
@@ -398,8 +429,15 @@ class MainWindow(BaseWindow):
             self._reddit_panel.set_subreddit(game_def.reddit)
             # Fetch Reddit posts
             self._reddit_helper.start_fetching(game_def.reddit, limit=15, sort="hot")
+            # Show menubar button and expand panel
+            self._reddit_menubar_button.show()
+            if self._reddit_panel.is_collapsed():
+                self._reddit_panel.expand()
         else:
+            # Hide panel and menubar button when no Reddit available
             self._reddit_panel.hide()
+            self._reddit_menubar_button.hide()
+            self._reddit_panel._is_collapsed = False
 
     def _on_reddit_posts_fetched(self, posts: list) -> None:
         """Handle Reddit posts being fetched.
@@ -416,6 +454,28 @@ class MainWindow(BaseWindow):
             error: Error message
         """
         self._reddit_panel.set_content(f"Error loading Reddit posts:\n{error}")
+
+    def _on_reddit_panel_collapsed_changed(self, is_collapsed: bool) -> None:
+        """Handle Reddit panel collapsed state change.
+
+        Args:
+            is_collapsed: True if panel is now collapsed, False if expanded
+        """
+        if is_collapsed:
+            # Panel collapsed - change button to expand arrow
+            self._reddit_menubar_button.setText("▶ Reddit")
+            self._reddit_menubar_button.setToolTip("Show Reddit panel")
+        else:
+            # Panel expanded - change button to collapse arrow
+            self._reddit_menubar_button.setText("◀ Reddit")
+            self._reddit_menubar_button.setToolTip("Hide Reddit panel")
+
+    def _on_reddit_menubar_button_clicked(self) -> None:
+        """Handle Reddit menubar button click (toggle panel)."""
+        if self._reddit_panel.is_collapsed():
+            self._reddit_panel.expand()
+        else:
+            self._reddit_panel.collapse()
 
     def _on_server_selected(self, server_id: str) -> None:
         """Handle server selection.
