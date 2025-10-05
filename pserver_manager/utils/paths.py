@@ -153,6 +153,14 @@ class AppPaths:
         """
         return self.get_user_data_dir() / "themes"
 
+    def get_icons_dir(self) -> Path:
+        """Get icons directory.
+
+        Returns:
+            Path to icons directory (in user data)
+        """
+        return self.get_user_data_dir() / "icons"
+
     def ensure_directories(self) -> None:
         """Create all necessary directories if they don't exist."""
         dirs_to_create = [
@@ -162,6 +170,7 @@ class AppPaths:
             self.get_cache_dir(),
             self.get_logs_dir(),
             self.get_themes_dir(),
+            self.get_icons_dir(),
         ]
 
         for directory in dirs_to_create:
@@ -221,6 +230,40 @@ class AppPaths:
                         for server_file in game_dir.glob("*.yaml"):
                             shutil.copy2(server_file, dest_game_dir / server_file.name)
 
+            # Migrate icons from bundled assets to user directory
+            bundled_assets_dir = self.get_app_install_dir() / "pserver_manager" / "assets"
+            if bundled_assets_dir.exists():
+                new_icons_dir = self.get_icons_dir()
+
+                # Copy server icons
+                bundled_servers_icons = bundled_assets_dir / "servers"
+                if bundled_servers_icons.exists():
+                    for game_icon_dir in bundled_servers_icons.iterdir():
+                        if game_icon_dir.is_dir():
+                            dest_game_icon_dir = new_icons_dir / "servers" / game_icon_dir.name
+                            dest_game_icon_dir.mkdir(parents=True, exist_ok=True)
+                            for icon_file in game_icon_dir.iterdir():
+                                if icon_file.is_file():
+                                    shutil.copy2(icon_file, dest_game_icon_dir / icon_file.name)
+
+                # Copy game icons
+                bundled_games_icons = bundled_assets_dir / "games"
+                if bundled_games_icons.exists():
+                    dest_games_dir = new_icons_dir / "games"
+                    dest_games_dir.mkdir(parents=True, exist_ok=True)
+                    for icon_file in bundled_games_icons.iterdir():
+                        if icon_file.is_file():
+                            shutil.copy2(icon_file, dest_games_dir / icon_file.name)
+
+                # Copy version icons
+                bundled_versions_icons = bundled_assets_dir / "versions"
+                if bundled_versions_icons.exists():
+                    dest_versions_dir = new_icons_dir / "versions"
+                    dest_versions_dir.mkdir(parents=True, exist_ok=True)
+                    for icon_file in bundled_versions_icons.iterdir():
+                        if icon_file.is_file():
+                            shutil.copy2(icon_file, dest_versions_dir / icon_file.name)
+
             # Migrate settings
             old_settings = old_config_dir / "settings.yaml"
             if old_settings.exists():
@@ -242,6 +285,7 @@ class AppPaths:
             "User Data (Servers)": str(self.get_user_data_dir()),
             "App Data (Settings)": str(self.get_app_data_dir()),
             "Servers Directory": str(self.get_servers_dir()),
+            "Icons Directory": str(self.get_icons_dir()),
             "Settings File": str(self.get_settings_file()),
             "Cache Directory": str(self.get_cache_dir()),
             "Logs Directory": str(self.get_logs_dir()),

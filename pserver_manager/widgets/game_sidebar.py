@@ -10,6 +10,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem
 
 from qtframework.widgets import VBox
+from pserver_manager.utils.paths import get_app_paths
 
 
 if TYPE_CHECKING:
@@ -75,7 +76,11 @@ class GameSidebar(VBox):
 
             # Set game icon if available
             if game.icon:
-                icon_path = Path(__file__).parent.parent / "icons" / game.icon
+                # Try user icons directory first, fall back to bundled
+                user_icon_path = get_app_paths().get_icons_dir() / game.icon
+                bundled_icon_path = Path(__file__).parent.parent / "assets" / game.icon
+
+                icon_path = user_icon_path if user_icon_path.exists() else bundled_icon_path
                 if icon_path.exists():
                     game_item.setIcon(0, QIcon(str(icon_path)))
 
@@ -91,7 +96,11 @@ class GameSidebar(VBox):
 
                     # Set version icon if available
                     if version.icon:
-                        version_icon_path = Path(__file__).parent.parent / "icons" / version.icon
+                        # Try user icons directory first, fall back to bundled
+                        user_version_icon_path = get_app_paths().get_icons_dir() / version.icon
+                        bundled_version_icon_path = Path(__file__).parent.parent / "assets" / version.icon
+
+                        version_icon_path = user_version_icon_path if user_version_icon_path.exists() else bundled_version_icon_path
                         if version_icon_path.exists():
                             version_item.setIcon(0, QIcon(str(version_icon_path)))
 

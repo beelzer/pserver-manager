@@ -22,6 +22,7 @@ from qtframework.widgets.badge import Badge, BadgeVariant
 from qtframework.widgets.advanced import ConfirmDialog
 from pserver_manager.models import ServerStatus
 from pserver_manager.utils import ping_multiple_servers_sync
+from pserver_manager.utils.paths import get_app_paths
 
 
 if TYPE_CHECKING:
@@ -169,7 +170,11 @@ class ServerTable(VBox):
 
                     # Add server icon if available
                     if server.icon:
-                        icon_path = Path(__file__).parent.parent / "icons" / server.icon
+                        # Try user icons directory first, fall back to bundled
+                        user_icon_path = get_app_paths().get_icons_dir() / server.icon
+                        bundled_icon_path = Path(__file__).parent.parent / "assets" / server.icon
+
+                        icon_path = user_icon_path if user_icon_path.exists() else bundled_icon_path
                         if icon_path.exists():
                             item.setIcon(QIcon(str(icon_path)))
 
