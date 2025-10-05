@@ -10,15 +10,19 @@ from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import QSplitter
 
 from qtframework import Application
+from qtframework.config import ConfigManager
 from qtframework.core import BaseWindow
 from qtframework.plugins import PluginManager
 from qtframework.utils import ResourceManager
 from qtframework.widgets import VBox
+from qtframework.widgets.advanced import NotificationManager
+from qtframework.widgets.advanced.notifications import NotificationPosition
 
 from pserver_manager.config_loader import ColumnDefinition, ConfigLoader, GameDefinition
 from pserver_manager.models import Game
 from pserver_manager.widgets import GameSidebar, ServerTable
 from pserver_manager.widgets.server_editor import ServerEditor
+from pserver_manager.widgets.preferences_dialog import PreferencesDialog
 
 
 class MainWindow(BaseWindow):
@@ -30,6 +34,10 @@ class MainWindow(BaseWindow):
         Args:
             application: Application instance
         """
+        # Initialize config manager
+        self._config_manager = ConfigManager()
+        self._init_config()
+
         # Initialize data before parent init (which calls _setup_ui)
         self._config_loader = ConfigLoader(Path(__file__).parent / "config")
         self._game_defs: list[GameDefinition] = []
@@ -40,6 +48,46 @@ class MainWindow(BaseWindow):
         super().__init__(application=application)
         self.setWindowTitle("PServer Manager")
         self.setMinimumSize(1280, 800)
+
+        # Setup notification manager
+        self._notifications = NotificationManager(self)
+        self._notifications.set_position(NotificationPosition.BOTTOM_RIGHT)
+
+    def _init_config(self) -> None:
+        """Initialize configuration with defaults."""
+        config_file = Path(__file__).parent / "config" / "settings.yaml"
+
+        # Try to load existing config
+        if config_file.exists():
+            try:
+                self._config_manager.load_file(config_file)
+            except Exception as e:
+                print(f"Warning: Could not load config file: {e}")
+                self._load_default_config()
+        else:
+            # Load defaults and save to file
+            self._load_default_config()
+            config_file.parent.mkdir(parents=True, exist_ok=True)
+            self._config_manager.save(config_file)
+
+    def _load_default_config(self) -> None:
+        """Load default configuration."""
+        self._config_manager.load_defaults({
+            "ui": {
+                "theme": "dark",
+                "auto_refresh_interval": 300,
+                "show_offline_servers": True,
+            },
+            "network": {
+                "ping_timeout": 3,
+                "max_retries": 3,
+                "concurrent_pings": 10,
+            },
+            "display": {
+                "compact_view": False,
+                "show_icons": True,
+            },
+        })
 
     def _setup_ui(self) -> None:
         """Setup the user interface."""
@@ -68,6 +116,7 @@ class MainWindow(BaseWindow):
         self._server_table.server_selected.connect(self._on_server_selected)
         self._server_table.server_double_clicked.connect(self._on_server_double_clicked)
         self._server_table.edit_server_requested.connect(self._on_edit_server)
+        self._server_table.delete_server_requested.connect(self._on_delete_server)
 
         # Add to splitter
         splitter.addWidget(self._sidebar)
@@ -208,7 +257,6 @@ class MainWindow(BaseWindow):
 
     def _on_all_servers_selected(self) -> None:
         """Handle all servers selection."""
-        print("All servers selected")
         self._show_all_servers()
 
     def _on_game_selected(self, game_id: str) -> None:
@@ -217,8 +265,6 @@ class MainWindow(BaseWindow):
         Args:
             game_id: Selected game ID
         """
-        print(f"Game selected: {game_id}")
-
         # Find game definition
         game_def = self._config_loader.get_game_by_id(game_id, self._game_defs)
         if not game_def:
@@ -239,8 +285,6 @@ class MainWindow(BaseWindow):
             game_id: Game ID
             version_id: Version ID
         """
-        print(f"Version selected: {game_id} - {version_id}")
-
         # Find game definition
         game_def = self._config_loader.get_game_by_id(game_id, self._game_defs)
         if not game_def:
@@ -260,7 +304,7 @@ class MainWindow(BaseWindow):
         Args:
             server_id: Selected server ID
         """
-        print(f"Server selected: {server_id}")
+        # Server selected - no notification needed
 
     def _on_server_double_clicked(self, server_id: str) -> None:
         """Handle server double click.
@@ -268,7 +312,7 @@ class MainWindow(BaseWindow):
         Args:
             server_id: Double-clicked server ID
         """
-        print(f"Server double-clicked: {server_id}")
+        # Server double-clicked - could open details view in future
 
     def _on_edit_server(self, server_id: str) -> None:
         """Handle edit server request.
@@ -284,13 +328,13 @@ class MainWindow(BaseWindow):
                 break
 
         if not server:
-            print(f"Server not found: {server_id}")
+            self._notifications.error("Server Not Found", f"Could not find server: {server_id}")
             return
 
         # Find the game definition
         game = self._config_loader.get_game_by_id(server.game_id, self._game_defs)
         if not game:
-            print(f"Game not found: {server.game_id}")
+            self._notifications.error("Configuration Error", f"Game configuration not found for {server.game_id}")
             return
 
         # Open editor dialog
@@ -298,7 +342,7 @@ class MainWindow(BaseWindow):
         if editor.exec():
             # Save changes
             if editor.save_to_file():
-                print(f"Server {server_id} saved successfully")
+                self._notifications.success("Server Saved", f"'{server.name}' saved successfully")
                 # Reload config and refresh display
                 self._load_config()
                 if self._current_game:
@@ -306,36 +350,84 @@ class MainWindow(BaseWindow):
                 else:
                     self._show_all_servers()
             else:
-                print(f"Failed to save server {server_id}")
+                self._notifications.error("Save Failed", f"Failed to save server '{server.name}'")
+
+    def _on_delete_server(self, server_id: str) -> None:
+        """Handle delete server request.
+
+        Args:
+            server_id: Server ID to delete
+        """
+        # Find the server
+        server = None
+        for s in self._all_servers:
+            if s.id == server_id:
+                server = s
+                break
+
+        if not server:
+            self._notifications.error("Server Not Found", f"Could not find server: {server_id}")
+            return
+
+        # Delete the server's YAML file
+        try:
+            # Server files are in config/servers/{game_id}/{server_id}.yaml
+            # server.id is like "wow.retro-wow", extract just "retro-wow"
+            server_filename = server.id.split(".", 1)[1] if "." in server.id else server.id
+            config_dir = Path(__file__).parent / "config"
+            server_file = config_dir / "servers" / server.game_id / f"{server_filename}.yaml"
+
+            if server_file.exists():
+                server_file.unlink()
+                self._notifications.success("Server Deleted", f"'{server.name}' deleted successfully")
+                # Reload config and refresh display
+                self._load_config()
+                if self._current_game:
+                    self._on_game_selected(self._current_game.id)
+                else:
+                    self._show_all_servers()
+            else:
+                self._notifications.error("Delete Failed", "Server configuration file not found")
+        except Exception as e:
+            self._notifications.error("Delete Failed", f"Failed to delete server: {str(e)}")
 
     def _on_add_server(self) -> None:
         """Handle add server button click."""
-        print("Add server clicked")
+        self._notifications.info("Coming Soon", "Add server functionality coming soon")
 
     def _on_refresh(self) -> None:
         """Handle refresh button click."""
-        print("Refresh clicked")
         self._load_config()
         self._show_all_servers()
+        self._notifications.success("Refreshed", "Server list refreshed")
 
     def _on_ping_servers(self) -> None:
         """Handle ping servers action."""
-        print("Pinging servers...")
+        self._notifications.info("Pinging Servers", "Checking server status...")
         self._server_table.ping_servers()
-        print("Ping complete")
+        self._notifications.success("Ping Complete", "Server status updated")
 
     def _on_settings(self) -> None:
         """Handle settings button click."""
-        print("Settings clicked")
+        # Open preferences dialog
+        dialog = PreferencesDialog(
+            config_manager=self._config_manager,
+            theme_manager=self.application.theme_manager,
+            parent=self,
+        )
+        if dialog.exec():
+            # Save config to file after accepting changes
+            config_file = Path(__file__).parent / "config" / "settings.yaml"
+            self._config_manager.save(config_file)
+            self._notifications.success("Settings Saved", "Your preferences have been saved")
 
     def _on_show_all(self) -> None:
         """Handle show all servers action."""
-        print("Show all servers")
         self._show_all_servers()
 
     def _on_about(self) -> None:
         """Handle about action."""
-        print("About clicked")
+        self._notifications.info("About", "PServer Manager v1.0")
 
 
 def main() -> int:

@@ -10,15 +10,16 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
-    QDialogButtonBox,
     QFormLayout,
     QGroupBox,
-    QLineEdit,
+    QHBoxLayout,
     QSpinBox,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
+
+from qtframework.widgets import Button, Input, TextArea
+from qtframework.widgets.buttons import ButtonVariant
 
 
 if TYPE_CHECKING:
@@ -87,12 +88,18 @@ class ServerEditor(QDialog):
         layout.addWidget(group_box)
 
         # Buttons
-        button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
-        )
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        cancel_btn = Button("Cancel", variant=ButtonVariant.SECONDARY)
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_btn)
+
+        save_btn = Button("Save", variant=ButtonVariant.PRIMARY)
+        save_btn.clicked.connect(self.accept)
+        button_layout.addWidget(save_btn)
+
+        layout.addLayout(button_layout)
 
     def _create_field_widget(
         self,
@@ -154,19 +161,19 @@ class ServerEditor(QDialog):
 
         # Text/multiline fields
         if field_type == "text" or (isinstance(current_value, str) and len(current_value) > 100):
-            text_edit = QTextEdit()
-            text_edit.setPlainText(str(current_value or ""))
-            text_edit.setMaximumHeight(100)
-            if description:
-                text_edit.setToolTip(description)
-            return text_edit
+            text_area = TextArea(
+                value=str(current_value or ""),
+                placeholder=description if description else "",
+            )
+            text_area.setMaximumHeight(100)
+            return text_area
 
         # Default to line edit for strings
-        line_edit = QLineEdit()
-        line_edit.setText(str(current_value or ""))
-        if description:
-            line_edit.setPlaceholderText(description)
-        return line_edit
+        input_widget = Input(
+            value=str(current_value or ""),
+            placeholder=description if description else "",
+        )
+        return input_widget
 
     def get_values(self) -> dict[str, Any]:
         """Get the edited values from all fields.
@@ -176,16 +183,14 @@ class ServerEditor(QDialog):
         """
         values = {}
         for field_name, widget in self._fields.items():
-            if isinstance(widget, QLineEdit):
-                values[field_name] = widget.text()
+            if isinstance(widget, (Input, TextArea)):
+                values[field_name] = widget.value
             elif isinstance(widget, QComboBox):
                 values[field_name] = widget.currentText()
             elif isinstance(widget, QCheckBox):
                 values[field_name] = widget.isChecked()
             elif isinstance(widget, QSpinBox):
                 values[field_name] = widget.value()
-            elif isinstance(widget, QTextEdit):
-                values[field_name] = widget.toPlainText()
 
         return values
 

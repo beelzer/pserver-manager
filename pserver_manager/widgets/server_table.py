@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from qtframework.widgets import VBox
 from qtframework.widgets.badge import Badge, BadgeVariant
+from qtframework.widgets.advanced import ConfirmDialog
 from pserver_manager.models import ServerStatus
 from pserver_manager.utils import ping_multiple_servers_sync
 
@@ -88,6 +89,7 @@ class ServerTable(VBox):
     server_selected = Signal(str)  # server_id
     server_double_clicked = Signal(str)  # server_id
     edit_server_requested = Signal(str)  # server_id
+    delete_server_requested = Signal(str)  # server_id
 
     def __init__(self, parent=None) -> None:
         """Initialize the server table."""
@@ -317,10 +319,19 @@ class ServerTable(VBox):
 
         menu = QMenu(self._table)
         edit_action = menu.addAction("Edit")
+        delete_action = menu.addAction("Delete")
 
         action = menu.exec(self._table.viewport().mapToGlobal(pos))
         if action == edit_action:
             self.edit_server_requested.emit(server_id)
+        elif action == delete_action:
+            # Show confirmation dialog before deleting
+            if ConfirmDialog.confirm(
+                "Delete Server",
+                f"Are you sure you want to delete this server?\n\nThis action cannot be undone.",
+                self,
+            ):
+                self.delete_server_requested.emit(server_id)
 
     def filter_by_game(
         self,

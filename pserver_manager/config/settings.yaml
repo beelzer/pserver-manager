@@ -1,0 +1,12 @@
+$schema_version: 1.0.0
+display:
+  compact_view: false
+  show_icons: true
+network:
+  concurrent_pings: 10
+  max_retries: 3
+  ping_timeout: 3
+ui:
+  auto_refresh_interval: 300
+  show_offline_servers: true
+  theme: dark
