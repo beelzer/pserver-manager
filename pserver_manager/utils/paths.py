@@ -264,6 +264,16 @@ class AppPaths:
                         if icon_file.is_file():
                             shutil.copy2(icon_file, dest_versions_dir / icon_file.name)
 
+            # Migrate bundled themes to user directory
+            bundled_themes_dir = self.get_app_install_dir() / "pserver_manager" / "themes"
+            if bundled_themes_dir.exists():
+                user_themes_dir = self.get_themes_dir()
+                for theme_file in bundled_themes_dir.glob("*.yaml"):
+                    dest_theme = user_themes_dir / theme_file.name
+                    # Only copy if theme doesn't exist (don't overwrite user customizations)
+                    if not dest_theme.exists():
+                        shutil.copy2(theme_file, dest_theme)
+
             # Migrate settings
             old_settings = old_config_dir / "settings.yaml"
             if old_settings.exists():

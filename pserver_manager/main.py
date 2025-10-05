@@ -538,7 +538,13 @@ def main() -> int:
     # Setup custom resource manager
     resource_manager = ResourceManager()
 
-    # Add custom resource paths (searched before framework paths)
+    # Get app paths for user data directories
+    app_paths = get_app_paths()
+
+    # Add user themes directory (searched first for user customizations)
+    resource_manager.add_search_path("themes", app_paths.get_themes_dir())
+
+    # Add bundled resource paths (searched after user paths)
     resource_manager.add_search_path("themes", Path("pserver_manager/themes"))
     resource_manager.add_search_path("icons", Path("pserver_manager/icons"))
     resource_manager.add_search_path("translations", Path("pserver_manager/translations"))

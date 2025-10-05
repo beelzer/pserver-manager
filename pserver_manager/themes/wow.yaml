@@ -1,0 +1,254 @@
+name: wow
+display_name: World of Warcraft
+description: Classic WoW UI-inspired theme with dark stone, gold accents, and alliance blue
+author: PServer Manager
+version: 1.0.0
+
+tokens:
+  primitive:
+    # Stone/Gray palette (dark UI frames)
+    gray_50: "#0A0A0C"   # darkest stone
+    gray_100: "#141418"  # very dark stone
+    gray_200: "#1E1E24"  # dark stone
+    gray_300: "#282830"  # medium dark stone
+    gray_400: "#32323C"  # medium stone
+    gray_500: "#3C3C48"  # medium light stone
+    gray_600: "#505058"  # light stone
+    gray_700: "#646470"  # lighter stone
+    gray_800: "#787888"  # very light stone
+    gray_900: "#A0A0B0"  # near white stone
+    gray_950: "#C8C8D8"  # lightest stone
+
+    # Alliance Blue - Primary
+    primary_50: "#0A1420"
+    primary_100: "#0F1E30"
+    primary_200: "#1A2D48"
+    primary_300: "#243C5C"
+    primary_400: "#2E4B70"
+    primary_500: "#3D5A80"  # classic alliance blue
+    primary_600: "#5078A8"  # bright alliance blue
+    primary_700: "#6B92C0"  # light alliance blue
+    primary_800: "#86ACD8"  # very light alliance blue
+    primary_900: "#A1C6F0"
+    primary_950: "#BCE0FF"
+
+    # Gold - Secondary (WoW gold coin color)
+    secondary_50: "#1A1408"
+    secondary_100: "#2A2010"
+    secondary_200: "#3D2E18"
+    secondary_300: "#503C20"
+    secondary_400: "#705428"
+    secondary_500: "#906C30"  # rich gold
+    secondary_600: "#B8883C"  # bright gold
+    secondary_700: "#D4A450"  # lighter gold
+    secondary_800: "#E8C078"  # very light gold
+    secondary_900: "#F4D8A0"
+    secondary_950: "#FFF0C8"
+
+    # Horde Red - Error
+    error_50: "#1A0808"
+    error_100: "#2A1010"
+    error_200: "#3D1818"
+    error_300: "#502020"
+    error_400: "#702828"
+    error_500: "#903030"  # horde red
+    error_600: "#B83C3C"  # bright horde red
+    error_700: "#D45050"
+    error_800: "#E87878"
+    error_900: "#F4A0A0"
+    error_950: "#FFC8C8"
+
+    # Fel Green - Warning
+    warning_50: "#0C1408"
+    warning_100: "#182010"
+    warning_200: "#243018"
+    warning_300: "#304020"
+    warning_400: "#486030"
+    warning_500: "#608040"  # fel/warlock green
+    warning_600: "#78A050"
+    warning_700: "#90C068"
+    warning_800: "#A8D888"
+    warning_900: "#C0F0A8"
+    warning_950: "#D8FFC8"
+
+    # Arcane Purple - Info
+    info_50: "#140A1A"
+    info_100: "#20142A"
+    info_200: "#301E3D"
+    info_300: "#402850"
+    info_400: "#603870"
+    info_500: "#804890"  # arcane/mage purple
+    info_600: "#A060B8"
+    info_700: "#C078D4"
+    info_800: "#D898E8"
+    info_900: "#F0B8F4"
+    info_950: "#FFD8FF"
+
+    # Nature Green - Success
+    success_50: "#081408"
+    success_100: "#102010"
+    success_200: "#183018"
+    success_300: "#204020"
+    success_400: "#306030"
+    success_500: "#408040"  # druid/nature green
+    success_600: "#50A050"
+    success_700: "#68C068"
+    success_800: "#88D888"
+    success_900: "#A8F0A8"
+    success_950: "#C8FFC8"
+
+    white: "#E8E8F0"
+    black: "#0A0A0C"
+    transparent: "transparent"
+
+  semantic:
+    # Backgrounds - dark stone UI
+    bg_primary: "#141418"
+    bg_secondary: "#1E1E24"
+    bg_tertiary: "#282830"
+    bg_elevated: "#1E1E24"
+    bg_overlay: "rgba(20, 20, 24, 0.9)"
+
+    # Foreground - light text with gold tint
+    fg_primary: "#E8E8F0"
+    fg_secondary: "#C8C8D8"
+    fg_tertiary: "#A0A0B0"
+    fg_on_accent: "#0A0A0C"
+    fg_on_dark: "#E8E8F0"
+    fg_on_light: "#0A0A0C"
+
+    # Interactive - alliance blue and gold
+    action_primary: "#5078A8"
+    action_primary_hover: "#6B92C0"
+    action_primary_active: "#3D5A80"
+    action_secondary: "#B8883C"
+    action_secondary_hover: "#D4A450"
+    action_secondary_active: "#906C30"
+
+    # Feedback
+    feedback_success: "#50A050"
+    feedback_warning: "#78A050"
+    feedback_error: "#B83C3C"
+    feedback_info: "#A060B8"
+
+    # Borders - subtle stone borders with gold highlights
+    border_default: "#32323C"
+    border_subtle: "#282830"
+    border_strong: "#505058"
+    border_focus: "#B8883C"
+
+    # States
+    state_hover: "#282830"
+    state_selected: "#3D5A80"
+    state_disabled: "#32323C"
+    state_focus: "#B8883C"
+
+  components:
+    # Buttons - gold primary, stone secondary
+    button_primary_bg: "#B8883C"
+    button_primary_fg: "#0A0A0C"
+    button_primary_border: "#D4A450"
+    button_secondary_bg: "#32323C"
+    button_secondary_fg: "#E8E8F0"
+    button_secondary_border: "#505058"
+
+    # Inputs - dark stone with gold focus
+    input_bg: "#1E1E24"
+    input_fg: "#E8E8F0"
+    input_border: "#32323C"
+    input_placeholder: "#646470"
+
+    # Tables - stone frames with blue highlights
+    table_header_bg: "#1E1E24"
+    table_header_fg: "#E8E8F0"
+    table_row_bg: "#141418"
+    table_row_bg_alt: "#1E1E24"
+    table_row_hover: "#282830"
+    table_row_selected: "#3D5A80"
+    table_border: "#32323C"
+
+    # Menus - dark stone
+    menu_bg: "#1E1E24"
+    menu_fg: "#E8E8F0"
+    menu_hover_bg: "#282830"
+    menu_hover_fg: "#E8E8F0"
+    menu_selected_bg: "#3D5A80"
+    menu_selected_fg: "#E8E8F0"
+
+    # Scrollbars - stone
+    scrollbar_bg: "#1E1E24"
+    scrollbar_thumb: "#32323C"
+    scrollbar_thumb_hover: "#3C3C48"
+
+    # Tabs - stone with gold active
+    tab_bg: "#1E1E24"
+    tab_fg: "#A0A0B0"
+    tab_active_bg: "#141418"
+    tab_active_fg: "#B8883C"
+    tab_hover_bg: "#282830"
+    tab_hover_fg: "#C8C8D8"
+
+    # Charts - class colors inspired
+    chart_1: "#5078A8"  # warrior/alliance blue
+    chart_2: "#B8883C"  # paladin/gold
+    chart_3: "#50A050"  # hunter/druid green
+    chart_4: "#B83C3C"  # death knight/horde red
+    chart_5: "#A060B8"  # mage/warlock purple
+    chart_6: "#78A050"  # shaman green
+    chart_grid: "#32323C"
+    chart_axis: "#646470"
+
+    # Badges - using WoW colors
+    badge_primary_bg: "#5078A8"
+    badge_primary_fg: "#E8E8F0"
+    badge_primary_border: "#6B92C0"
+
+    badge_success_bg: "#50A050"
+    badge_success_fg: "#0A0A0C"
+    badge_success_border: "#68C068"
+
+    badge_warning_bg: "#78A050"
+    badge_warning_fg: "#0A0A0C"
+    badge_warning_border: "#90C068"
+
+    badge_danger_bg: "#B83C3C"
+    badge_danger_fg: "#E8E8F0"
+    badge_danger_border: "#D45050"
+
+    badge_info_bg: "#A060B8"
+    badge_info_fg: "#E8E8F0"
+    badge_info_border: "#C078D4"
+
+    badge_light_bg: "#C8C8D8"
+    badge_light_fg: "#0A0A0C"
+    badge_light_border: "#E8E8F0"
+
+    badge_dark_bg: "#141418"
+    badge_dark_fg: "#E8E8F0"
+    badge_dark_border: "#32323C"
+
+  typography:
+    font_family_code: "Consolas"
+
+  syntax:
+    keyword: "#5078A8"      # alliance blue
+    class_name: "#B8883C"   # gold
+    function: "#6B92C0"     # light blue
+    string: "#50A050"       # nature green
+    comment: "#646470"      # muted stone
+    number: "#D4A450"       # light gold
+    operator: "#5078A8"     # alliance blue
+    decorator: "#A060B8"    # arcane purple
+    constant: "#3D5A80"     # dark alliance blue
+    variable: "#C8C8D8"     # light stone
+    parameter: "#E8C078"    # very light gold
+    type: "#B8883C"         # gold
+    namespace: "#6B92C0"    # light blue
+    error: "#B83C3C"        # horde red
+    warning: "#78A050"      # fel green
+    info: "#A060B8"         # arcane purple
+
+custom_styles:
+  'QGroupBox[search-match="true"]': "border: 2px solid #B8883C; border-radius: 4px;"
+  'QLabel[search-match="true"]': "background-color: rgba(184, 136, 60, 0.2); border-radius: 2px; padding: 2px;"
+  'QPushButton[search-match="true"]': "border: 2px solid #B8883C;"
