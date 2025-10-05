@@ -185,12 +185,18 @@ class MainWindow(BaseWindow):
         self._reddit_menubar_button = Button(
             "▶ Reddit",
             size=ButtonSize.COMPACT,
-            variant=ButtonVariant.OUTLINE
+            variant=ButtonVariant.PRIMARY
         )
         self._reddit_menubar_button.clicked.connect(self._on_reddit_menubar_button_clicked)
         self._reddit_menubar_button.setToolTip("Show Reddit panel")
-        # Make button fit menubar height - override compact size
-        self._reddit_menubar_button.setStyleSheet("padding: 2px 8px; min-height: 0px; max-height: 22px;")
+        # Override ONLY size properties to fit menubar, preserve theme colors
+        self._reddit_menubar_button.setStyleSheet("""
+            QPushButton {
+                padding: 2px 8px;
+                min-height: 0px;
+                max-height: 22px;
+            }
+        """)
         self._reddit_menubar_button.hide()  # Hidden by default
         menubar.setCornerWidget(self._reddit_menubar_button, Qt.Corner.TopRightCorner)
 

@@ -64,9 +64,8 @@ class RedditPanel(VBox):
 
         self.add_widget(self._content, stretch=1)
 
-        # Set initial minimum/maximum width
-        self.setMinimumWidth(50)
-        self.setMaximumWidth(400)
+        # Set initial minimum width (no maximum to allow expansion)
+        self.setMinimumWidth(400)
 
     def set_subreddit(self, subreddit: str) -> None:
         """Set the subreddit to display.
@@ -198,13 +197,15 @@ class RedditPanel(VBox):
 
             # Meta information
             meta_label = QLabel(
-                f'<span style="color: #FF6B35; font-weight: 500;">u/{html.escape(post.author)}</span> • '
+                f'<a href="https://www.reddit.com/user/{html.escape(post.author)}" style="text-decoration: none; color: #FF6B35; font-weight: 500;">u/{html.escape(post.author)}</a> • '
                 f'<span style="color: #FFA07A; font-weight: 500;">↑ {post.score}</span> • '
                 f'<span>💬 {post.num_comments}</span> • '
                 f'<span style="opacity: 0.7;">{post.time_ago}</span>'
             )
             meta_label.setTextFormat(Qt.TextFormat.RichText)
             meta_label.setStyleSheet("QLabel { font-size: 14px; }")
+            meta_label.setOpenExternalLinks(True)
+            meta_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
             card.add_widget(meta_label)
 
             # Post preview if available
