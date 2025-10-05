@@ -2,6 +2,7 @@
 id: wow
 name: "World of Warcraft"
 icon: "games/wow.png"
+reddit: "wowservers"
 
 # WoW Expansions/Versions
 versions:

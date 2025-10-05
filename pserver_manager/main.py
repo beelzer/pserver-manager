@@ -21,8 +21,9 @@ from qtframework.widgets.advanced.notifications import NotificationPosition
 from pserver_manager.config_loader import ColumnDefinition, ConfigLoader, GameDefinition
 from pserver_manager.models import Game
 from pserver_manager.utils import ServerUpdateChecker, get_app_paths
+from pserver_manager.utils.qt_reddit_worker import RedditFetchHelper
 from pserver_manager.utils.schema_migrations import migrate_user_servers
-from pserver_manager.widgets import GameSidebar, ServerTable
+from pserver_manager.widgets import GameSidebar, RedditPanel, ServerTable
 from pserver_manager.widgets.server_editor import ServerEditor
 from pserver_manager.widgets.preferences_dialog import PreferencesDialog
 from pserver_manager.widgets.update_dialog import UpdateDialog
@@ -98,6 +99,11 @@ class MainWindow(BaseWindow):
             bundled_servers_dir, user_servers_dir, bundled_themes_dir, user_themes_dir
         )
 
+        # Initialize Reddit fetch helper
+        self._reddit_helper = RedditFetchHelper()
+        self._reddit_helper.finished.connect(self._on_reddit_posts_fetched)
+        self._reddit_helper.error.connect(self._on_reddit_error)
+
         # Check for updates on startup (after window is shown)
         from PySide6.QtCore import QTimer
 
@@ -168,11 +174,17 @@ class MainWindow(BaseWindow):
         self._server_table.edit_server_requested.connect(self._on_edit_server)
         self._server_table.delete_server_requested.connect(self._on_delete_server)
 
+        # Create Reddit panel
+        self._reddit_panel = RedditPanel()
+        self._reddit_panel.hide()  # Hidden by default
+
         # Add to splitter
         splitter.addWidget(self._sidebar)
         splitter.addWidget(self._server_table)
+        splitter.addWidget(self._reddit_panel)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
+        splitter.setStretchFactor(2, 1)
 
         # Add splitter with stretch to fill vertical space
         main_layout.add_widget(splitter, stretch=1)
@@ -331,6 +343,8 @@ class MainWindow(BaseWindow):
     def _on_all_servers_selected(self) -> None:
         """Handle all servers selection."""
         self._show_all_servers()
+        # Hide Reddit panel when showing all servers
+        self._reddit_panel.hide()
 
     def _on_game_selected(self, game_id: str) -> None:
         """Handle game selection.
@@ -351,6 +365,14 @@ class MainWindow(BaseWindow):
         # Filter servers for this game
         self._server_table.filter_by_game(self._all_servers, game_id)
 
+        # Show/hide Reddit panel based on whether game has Reddit defined
+        if game_def.reddit:
+            self._reddit_panel.set_subreddit(game_def.reddit)
+            # Fetch Reddit posts
+            self._reddit_helper.start_fetching(game_def.reddit, limit=15, sort="hot")
+        else:
+            self._reddit_panel.hide()
+
     def _on_version_selected(self, game_id: str, version_id: str) -> None:
         """Handle version selection.
 
@@ -370,6 +392,30 @@ class MainWindow(BaseWindow):
 
         # Filter servers for this game and version
         self._server_table.filter_by_game(self._all_servers, game_id, version_id)
+
+        # Show/hide Reddit panel based on whether game has Reddit defined
+        if game_def.reddit:
+            self._reddit_panel.set_subreddit(game_def.reddit)
+            # Fetch Reddit posts
+            self._reddit_helper.start_fetching(game_def.reddit, limit=15, sort="hot")
+        else:
+            self._reddit_panel.hide()
+
+    def _on_reddit_posts_fetched(self, posts: list) -> None:
+        """Handle Reddit posts being fetched.
+
+        Args:
+            posts: List of RedditPost objects
+        """
+        self._reddit_panel.set_posts(posts)
+
+    def _on_reddit_error(self, error: str) -> None:
+        """Handle Reddit fetch error.
+
+        Args:
+            error: Error message
+        """
+        self._reddit_panel.set_content(f"Error loading Reddit posts:\n{error}")
 
     def _on_server_selected(self, server_id: str) -> None:
         """Handle server selection.

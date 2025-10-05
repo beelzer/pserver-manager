@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pserver_manager.widgets.game_sidebar import GameSidebar
+from pserver_manager.widgets.reddit_panel import RedditPanel
 from pserver_manager.widgets.server_table import ServerTable
 
-__all__ = ["GameSidebar", "ServerTable"]
+__all__ = ["GameSidebar", "RedditPanel", "ServerTable"]

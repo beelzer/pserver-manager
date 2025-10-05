@@ -38,6 +38,7 @@ class GameDefinition:
         self.id: str = data["id"]
         self.name: str = data["name"]
         self.icon: str = data.get("icon", "")
+        self.reddit: str = data.get("reddit", "")
         self.versions: list[GameVersion] = [
             GameVersion(
                 id=v["id"],
