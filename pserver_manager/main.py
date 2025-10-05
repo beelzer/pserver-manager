@@ -193,6 +193,9 @@ class MainWindow(BaseWindow):
         theme_action_group = QActionGroup(self)
         theme_action_group.setExclusive(True)
 
+        # Store theme actions for updating later
+        self._theme_menu_actions = {}
+
         current_theme = theme_manager.get_current_theme()
 
         for theme_name in theme_names:
@@ -217,6 +220,17 @@ class MainWindow(BaseWindow):
             theme_action_group.addAction(action)
             theme_menu.addAction(action)
 
+            # Store action for later updates
+            self._theme_menu_actions[theme_name] = action
+
+        # Connect to theme manager's theme_changed signal to update menu
+        def update_theme_menu(new_theme_name: str):
+            """Update checked state of theme menu items."""
+            for theme_name, action in self._theme_menu_actions.items():
+                action.setChecked(theme_name == new_theme_name)
+
+        theme_manager.theme_changed.connect(update_theme_menu)
+
     def _apply_theme(self, theme_name: str) -> None:
         """Apply selected theme.
 
@@ -224,6 +238,10 @@ class MainWindow(BaseWindow):
             theme_name: Theme name to apply
         """
         self.application.theme_manager.set_theme(theme_name)
+        # Update config to persist theme selection
+        self._config_manager.set("ui.theme", theme_name)
+        config_file = self._app_paths.get_settings_file()
+        self._config_manager.save(config_file)
 
     def _create_menu_bar(self) -> None:
         """Create the menu bar."""
@@ -618,11 +636,13 @@ def main() -> int:
         plugin_manager.load_plugin(plugin_metadata.id)
         plugin_manager.activate_plugin(plugin_metadata.id)
 
-    # Set theme (uses custom theme if exists, otherwise built-in)
-    app.theme_manager.set_theme("dark")
-
-    # Create and show main window
+    # Create and show main window (config is loaded in __init__)
     window = MainWindow(application=app)
+
+    # Apply theme from config after window is initialized
+    saved_theme = window._config_manager.get("ui.theme", "dark")
+    app.theme_manager.set_theme(saved_theme)
+
     window.show()
 
     # Run application

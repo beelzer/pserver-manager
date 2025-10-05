@@ -7,6 +7,7 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QGroupBox, QLabel, QVBoxLayout
 
 from qtframework.widgets import Button, ConfigEditorWidget, ConfigFieldDescriptor, HBox
@@ -64,6 +65,7 @@ class PreferencesDialog(QDialog):
                 field_type="choice",
                 default="dark",
                 choices_callback=self._get_available_themes,
+                choices_display_callback=self._get_theme_display_names,
                 on_change=self._on_theme_changed,
                 group="User Interface",
             ),
@@ -157,6 +159,10 @@ class PreferencesDialog(QDialog):
         # Connect config changed signal
         self.editor_widget.config_changed.connect(self._on_config_changed)
 
+        # Connect to theme manager's signal to update dropdown when theme changes externally
+        if self.theme_manager:
+            self.theme_manager.theme_changed.connect(self._on_external_theme_change)
+
     def _create_path_section(self) -> QGroupBox:
         """Create path information and management section.
 
@@ -165,6 +171,7 @@ class PreferencesDialog(QDialog):
         """
         group = QGroupBox("Data Locations")
         layout = QVBoxLayout(group)
+        layout.setSpacing(12)
 
         # Mode indicator
         mode_label = QLabel(
@@ -173,25 +180,25 @@ class PreferencesDialog(QDialog):
         layout.addWidget(mode_label)
 
         # User Data (Servers) path
-        user_data_widget = HBox()
+        user_data_widget = HBox(spacing=8)
         user_data_label = QLabel(f"<b>Servers:</b> {self.app_paths.get_servers_dir()}")
         user_data_label.setWordWrap(True)
-        user_data_widget.add_widget(user_data_label, stretch=1)
+        user_data_widget.add_widget(user_data_label, stretch=1, alignment=Qt.AlignmentFlag.AlignVCenter)
 
         open_servers_btn = Button("Open Folder", variant=ButtonVariant.SECONDARY)
         open_servers_btn.clicked.connect(lambda: self._open_folder(self.app_paths.get_servers_dir()))
-        user_data_widget.add_widget(open_servers_btn)
+        user_data_widget.add_widget(open_servers_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(user_data_widget)
 
         # App Data (Settings) path
-        app_data_widget = HBox()
+        app_data_widget = HBox(spacing=8)
         app_data_label = QLabel(f"<b>Settings:</b> {self.app_paths.get_app_data_dir()}")
         app_data_label.setWordWrap(True)
-        app_data_widget.add_widget(app_data_label, stretch=1)
+        app_data_widget.add_widget(app_data_label, stretch=1, alignment=Qt.AlignmentFlag.AlignVCenter)
 
         open_settings_btn = Button("Open Folder", variant=ButtonVariant.SECONDARY)
         open_settings_btn.clicked.connect(lambda: self._open_folder(self.app_paths.get_app_data_dir()))
-        app_data_widget.add_widget(open_settings_btn)
+        app_data_widget.add_widget(open_settings_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(app_data_widget)
 
         # Info text
@@ -203,7 +210,7 @@ class PreferencesDialog(QDialog):
         layout.addWidget(info_text)
 
         # Check for Updates button
-        update_btn_layout = HBox()
+        update_btn_layout = HBox(spacing=8)
         update_btn_layout.add_stretch()
         check_updates_btn = Button("Check for Server Updates", variant=ButtonVariant.SECONDARY)
         check_updates_btn.clicked.connect(self._check_for_updates)
@@ -240,6 +247,22 @@ class PreferencesDialog(QDialog):
             return self.theme_manager.list_themes()
         return ["light", "dark"]
 
+    def _get_theme_display_names(self) -> dict[str, str]:
+        """Get mapping of theme IDs to display names."""
+        if not self.theme_manager:
+            return {"light": "Light", "dark": "Dark"}
+
+        display_map = {}
+        for theme_name in self.theme_manager.list_themes():
+            theme_info = self.theme_manager.get_theme_info(theme_name)
+            if theme_info:
+                display_name = theme_info.get("display_name", theme_name.replace("_", " ").title())
+            else:
+                display_name = theme_name.replace("_", " ").title()
+            display_map[theme_name] = display_name
+
+        return display_map
+
     def _on_theme_changed(self, new_theme: str) -> None:
         """Handle theme change.
 
@@ -256,6 +279,17 @@ class PreferencesDialog(QDialog):
         """Handle configuration changes."""
         # Config changes are automatically saved by ConfigEditorWidget
         pass
+
+    def _on_external_theme_change(self, new_theme: str) -> None:
+        """Handle theme changes from external sources (e.g., menu).
+
+        Args:
+            new_theme: New theme name
+        """
+        # Update the config to reflect the new theme
+        self.config_manager.set("ui.theme", new_theme)
+        # Refresh the dropdown to show the correct selection
+        self.editor_widget.refresh_values()
 
     def _on_ok_clicked(self) -> None:
         """Handle OK button click."""
