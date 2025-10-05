@@ -20,9 +20,12 @@ from qtframework.widgets.advanced.notifications import NotificationPosition
 
 from pserver_manager.config_loader import ColumnDefinition, ConfigLoader, GameDefinition
 from pserver_manager.models import Game
+from pserver_manager.utils import ServerUpdateChecker, get_app_paths
+from pserver_manager.utils.schema_migrations import migrate_user_servers
 from pserver_manager.widgets import GameSidebar, ServerTable
 from pserver_manager.widgets.server_editor import ServerEditor
 from pserver_manager.widgets.preferences_dialog import PreferencesDialog
+from pserver_manager.widgets.update_dialog import UpdateDialog
 
 
 class MainWindow(BaseWindow):
@@ -34,12 +37,45 @@ class MainWindow(BaseWindow):
         Args:
             application: Application instance
         """
+        # Initialize path management
+        self._app_paths = get_app_paths()
+        self._app_paths.ensure_directories()
+
+        # Migrate old config if it exists and has servers
+        old_config_dir = Path(__file__).parent / "config"
+        old_servers_dir = old_config_dir / "servers"
+        new_servers_dir = self._app_paths.get_servers_dir()
+
+        # Check if old servers exist and new directory is empty
+        needs_migration = (
+            old_servers_dir.exists()
+            and any(old_servers_dir.rglob("*.yaml"))
+            and not any(new_servers_dir.rglob("*.yaml"))
+        )
+
+        if needs_migration:
+            print("Migrating old configuration to new location...")
+            if self._app_paths.migrate_old_config(old_config_dir):
+                print(f"Configuration migrated to: {self._app_paths.get_user_data_dir()}")
+
+        # Migrate user servers to current schema if needed
+        user_servers_dir = self._app_paths.get_servers_dir()
+        if user_servers_dir.exists() and any(user_servers_dir.rglob("*.yaml")):
+            print("Checking server configurations for schema updates...")
+            migration_report = migrate_user_servers(user_servers_dir, show_report=False)
+            if migration_report["migrated"] > 0:
+                print(f"Migrated {migration_report['migrated']} server(s) to current schema")
+
         # Initialize config manager
         self._config_manager = ConfigManager()
         self._init_config()
 
         # Initialize data before parent init (which calls _setup_ui)
-        self._config_loader = ConfigLoader(Path(__file__).parent / "config")
+        # Game definitions still from bundled config, servers from user directory
+        self._config_loader = ConfigLoader(
+            config_dir=Path(__file__).parent / "config",
+            servers_dir=self._app_paths.get_servers_dir(),
+        )
         self._game_defs: list[GameDefinition] = []
         self._all_servers = []
         self._current_game: GameDefinition | None = None
@@ -53,9 +89,19 @@ class MainWindow(BaseWindow):
         self._notifications = NotificationManager(self)
         self._notifications.set_position(NotificationPosition.BOTTOM_RIGHT)
 
+        # Initialize update checker
+        bundled_servers_dir = Path(__file__).parent / "config" / "servers"
+        user_servers_dir = self._app_paths.get_servers_dir()
+        self._update_checker = ServerUpdateChecker(bundled_servers_dir, user_servers_dir)
+
+        # Check for updates on startup (after window is shown)
+        from PySide6.QtCore import QTimer
+
+        QTimer.singleShot(1000, self._check_for_updates_on_startup)
+
     def _init_config(self) -> None:
         """Initialize configuration with defaults."""
-        config_file = Path(__file__).parent / "config" / "settings.yaml"
+        config_file = self._app_paths.get_settings_file()
 
         # Try to load existing config
         if config_file.exists():
@@ -371,11 +417,11 @@ class MainWindow(BaseWindow):
 
         # Delete the server's YAML file
         try:
-            # Server files are in config/servers/{game_id}/{server_id}.yaml
+            # Server files are in servers/{game_id}/{server_id}.yaml
             # server.id is like "wow.retro-wow", extract just "retro-wow"
             server_filename = server.id.split(".", 1)[1] if "." in server.id else server.id
-            config_dir = Path(__file__).parent / "config"
-            server_file = config_dir / "servers" / server.game_id / f"{server_filename}.yaml"
+            servers_dir = self._app_paths.get_servers_dir()
+            server_file = servers_dir / server.game_id / f"{server_filename}.yaml"
 
             if server_file.exists():
                 server_file.unlink()
@@ -413,11 +459,12 @@ class MainWindow(BaseWindow):
         dialog = PreferencesDialog(
             config_manager=self._config_manager,
             theme_manager=self.application.theme_manager,
+            app_paths=self._app_paths,
             parent=self,
         )
         if dialog.exec():
             # Save config to file after accepting changes
-            config_file = Path(__file__).parent / "config" / "settings.yaml"
+            config_file = self._app_paths.get_settings_file()
             self._config_manager.save(config_file)
             self._notifications.success("Settings Saved", "Your preferences have been saved")
 
@@ -428,6 +475,58 @@ class MainWindow(BaseWindow):
     def _on_about(self) -> None:
         """Handle about action."""
         self._notifications.info("About", "PServer Manager v1.0")
+
+    def _check_for_updates_on_startup(self) -> None:
+        """Check for updates on startup and show dialog if available."""
+        try:
+            update_info = self._update_checker.check_for_updates()
+
+            # Only show dialog if there are updates
+            has_updates = (
+                len(update_info.new_servers) > 0
+                or len(update_info.updated_servers) > 0
+                or len(update_info.conflicts) > 0
+            )
+
+            if has_updates:
+                dialog = UpdateDialog(update_info, self._update_checker, self)
+                if dialog.exec():
+                    # Updates were applied - reload config
+                    self._load_config()
+                    if self._current_game:
+                        self._on_game_selected(self._current_game.id)
+                    else:
+                        self._show_all_servers()
+                    self._notifications.success("Updates Applied", "Server configurations updated")
+        except Exception as e:
+            print(f"Error checking for updates: {e}")
+
+    def check_for_updates_manual(self) -> None:
+        """Manually check for updates (called from preferences/menu)."""
+        try:
+            update_info = self._update_checker.check_for_updates()
+
+            # Show dialog even if no updates (to inform user)
+            has_updates = (
+                len(update_info.new_servers) > 0
+                or len(update_info.updated_servers) > 0
+                or len(update_info.conflicts) > 0
+            )
+
+            if has_updates:
+                dialog = UpdateDialog(update_info, self._update_checker, self)
+                if dialog.exec():
+                    # Updates were applied - reload config
+                    self._load_config()
+                    if self._current_game:
+                        self._on_game_selected(self._current_game.id)
+                    else:
+                        self._show_all_servers()
+                    self._notifications.success("Updates Applied", "Server configurations updated")
+            else:
+                self._notifications.info("No Updates", "Your server configurations are up to date")
+        except Exception as e:
+            self._notifications.error("Update Check Failed", f"Error: {str(e)}")
 
 
 def main() -> int:

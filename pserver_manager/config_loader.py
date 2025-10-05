@@ -144,15 +144,16 @@ class ServerDefinition:
 class ConfigLoader:
     """Loads game and server configurations from YAML files."""
 
-    def __init__(self, config_dir: Path):
+    def __init__(self, config_dir: Path, servers_dir: Path | None = None):
         """Initialize config loader.
 
         Args:
-            config_dir: Root configuration directory
+            config_dir: Root configuration directory (for game definitions)
+            servers_dir: Server configurations directory (defaults to config_dir/servers)
         """
         self.config_dir = config_dir
         self.games_dir = config_dir / "games"
-        self.servers_dir = config_dir / "servers"
+        self.servers_dir = servers_dir if servers_dir else config_dir / "servers"
 
     def load_games(self) -> list[GameDefinition]:
         """Load all game definitions.

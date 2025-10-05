@@ -2,41 +2,58 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QDialog, QVBoxLayout
+from PySide6.QtWidgets import QDialog, QGroupBox, QLabel, QVBoxLayout
 
-from qtframework.widgets import Button, ConfigEditorWidget, ConfigFieldDescriptor
+from qtframework.widgets import Button, ConfigEditorWidget, ConfigFieldDescriptor, HBox
 from qtframework.widgets.buttons import ButtonVariant
 
 
 if TYPE_CHECKING:
     from qtframework.config import ConfigManager
 
+    from pserver_manager.utils.paths import AppPaths
+
 
 class PreferencesDialog(QDialog):
     """Preferences dialog using ConfigEditorWidget."""
 
-    def __init__(self, config_manager: ConfigManager, theme_manager, parent=None) -> None:
+    def __init__(
+        self,
+        config_manager: ConfigManager,
+        theme_manager,
+        app_paths: AppPaths,
+        parent=None,
+    ) -> None:
         """Initialize preferences dialog.
 
         Args:
             config_manager: Application config manager
             theme_manager: Application theme manager
+            app_paths: Application paths manager
             parent: Parent widget
         """
         super().__init__(parent)
         self.config_manager = config_manager
         self.theme_manager = theme_manager
+        self.app_paths = app_paths
 
         self.setWindowTitle("Preferences")
-        self.setMinimumSize(700, 600)
+        self.setMinimumSize(800, 700)
 
         self._setup_ui()
 
     def _setup_ui(self) -> None:
         """Setup the user interface."""
         layout = QVBoxLayout(self)
+
+        # Path Information Section
+        path_group = self._create_path_section()
+        layout.addWidget(path_group)
 
         # Define configuration fields
         fields = [
@@ -139,6 +156,83 @@ class PreferencesDialog(QDialog):
 
         # Connect config changed signal
         self.editor_widget.config_changed.connect(self._on_config_changed)
+
+    def _create_path_section(self) -> QGroupBox:
+        """Create path information and management section.
+
+        Returns:
+            QGroupBox with path controls
+        """
+        group = QGroupBox("Data Locations")
+        layout = QVBoxLayout(group)
+
+        # Mode indicator
+        mode_label = QLabel(
+            f"<b>Mode:</b> {'Portable' if self.app_paths.is_portable_mode() else 'Standard'}"
+        )
+        layout.addWidget(mode_label)
+
+        # User Data (Servers) path
+        user_data_widget = HBox()
+        user_data_label = QLabel(f"<b>Servers:</b> {self.app_paths.get_servers_dir()}")
+        user_data_label.setWordWrap(True)
+        user_data_widget.add_widget(user_data_label, stretch=1)
+
+        open_servers_btn = Button("Open Folder", variant=ButtonVariant.SECONDARY)
+        open_servers_btn.clicked.connect(lambda: self._open_folder(self.app_paths.get_servers_dir()))
+        user_data_widget.add_widget(open_servers_btn)
+        layout.addWidget(user_data_widget)
+
+        # App Data (Settings) path
+        app_data_widget = HBox()
+        app_data_label = QLabel(f"<b>Settings:</b> {self.app_paths.get_app_data_dir()}")
+        app_data_label.setWordWrap(True)
+        app_data_widget.add_widget(app_data_label, stretch=1)
+
+        open_settings_btn = Button("Open Folder", variant=ButtonVariant.SECONDARY)
+        open_settings_btn.clicked.connect(lambda: self._open_folder(self.app_paths.get_app_data_dir()))
+        app_data_widget.add_widget(open_settings_btn)
+        layout.addWidget(app_data_widget)
+
+        # Info text
+        info_text = QLabel(
+            "<i>Server configurations can be manually edited in the Servers folder. "
+            "Changes will be loaded when you refresh the server list.</i>"
+        )
+        info_text.setWordWrap(True)
+        layout.addWidget(info_text)
+
+        # Check for Updates button
+        update_btn_layout = HBox()
+        update_btn_layout.add_stretch()
+        check_updates_btn = Button("Check for Server Updates", variant=ButtonVariant.SECONDARY)
+        check_updates_btn.clicked.connect(self._check_for_updates)
+        update_btn_layout.add_widget(check_updates_btn)
+        layout.addWidget(update_btn_layout)
+
+        return group
+
+    def _open_folder(self, path) -> None:
+        """Open folder in file explorer.
+
+        Args:
+            path: Path to open
+        """
+        try:
+            if sys.platform == "win32":
+                os.startfile(path)
+            elif sys.platform == "darwin":
+                subprocess.run(["open", str(path)])
+            else:
+                subprocess.run(["xdg-open", str(path)])
+        except Exception as e:
+            print(f"Could not open folder: {e}")
+
+    def _check_for_updates(self) -> None:
+        """Check for server configuration updates."""
+        # Call the main window's update checker
+        if self.parent():
+            self.parent().check_for_updates_manual()
 
     def _get_available_themes(self) -> list[str]:
         """Get list of available themes."""

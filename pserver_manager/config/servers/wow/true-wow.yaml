@@ -4,11 +4,12 @@ website: https://truewow.org/
 discord: GqPJkbz
 host: login.truewow.org
 version_id: wotlk
+status: online
 icon: servers/wow/true-wow.png
-realm_name:
+realm_name: ''
 realm_type: PvP
 rates: 1x, 2x, 3x
 population: Medium
 language: English
-uptime:
+uptime: Unknown
 description: The oldest and most dedicated WoW server Community since 2010.

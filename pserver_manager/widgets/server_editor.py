@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import yaml
+
+from pserver_manager.utils import get_app_paths
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -206,12 +208,16 @@ class ServerEditor(QDialog):
             # Merge with existing data to preserve any fields not in schema
             updated_data = {**self.server.data, **values}
 
-            # Find the server's YAML file
-            # Server files are in config/servers/{game_id}/{server_id}.yaml
+            # Find the server's YAML file in user directory
+            # Server files are in servers/{game_id}/{server_id}.yaml
             # server.id is like "wow.retro-wow", extract just "retro-wow"
             server_filename = self.server.id.split(".", 1)[1] if "." in self.server.id else self.server.id
-            config_dir = Path(__file__).parent.parent / "config"
-            server_file = config_dir / "servers" / self.server.game_id / f"{server_filename}.yaml"
+            app_paths = get_app_paths()
+            servers_dir = app_paths.get_servers_dir()
+            server_file = servers_dir / self.server.game_id / f"{server_filename}.yaml"
+
+            # Ensure directory exists
+            server_file.parent.mkdir(parents=True, exist_ok=True)
 
             # Write to YAML file
             with open(server_file, "w", encoding="utf-8") as f:

@@ -4,11 +4,12 @@ website: https://www.smolderforge.com
 discord: 011yfSWQostIZXNvd
 host: logon.smolderforge.com
 version_id: tbc
+status: online
 icon: servers/wow/smolderforge.jpg
-realm_name:
+realm_name: ''
 realm_type: PvP Only
 rates: Instant 70
 population: Medium
 language: English
-uptime:
+uptime: Unknown
 description: Smolderforge is an instant-70 PvP private server for TBC (patch 2.4.3) with active arenas and battlegrounds since 2008.
