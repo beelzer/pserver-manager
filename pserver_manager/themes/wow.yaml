@@ -139,7 +139,7 @@ tokens:
 
     # States
     state_hover: "#342E20"
-    state_selected: "#4A7FBF"
+    state_selected: "#D4A736"
     state_disabled: "#403A28"
     state_focus: "#D4A736"
 
@@ -164,7 +164,7 @@ tokens:
     table_row_bg: "#1C1610"
     table_row_bg_alt: "#282218"
     table_row_hover: "#342E20"
-    table_row_selected: "#4A7FBF"
+    table_row_selected: "#D4A736"
     table_border: "#403A28"
 
     # Dark menus
@@ -172,8 +172,8 @@ tokens:
     menu_fg: "#F5F7FA"
     menu_hover_bg: "#342E20"
     menu_hover_fg: "#F5F7FA"
-    menu_selected_bg: "#4A7FBF"
-    menu_selected_fg: "#F5F7FA"
+    menu_selected_bg: "#D4A736"
+    menu_selected_fg: "#0D0E10"
 
     # Scrollbars
     scrollbar_bg: "#282218"
@@ -252,3 +252,9 @@ custom_styles:
   'QGroupBox[search-match="true"]': "border: 2px solid #D4A736; border-radius: 4px;"
   'QLabel[search-match="true"]': "background-color: rgba(212, 167, 54, 0.2); border-radius: 2px; padding: 2px;"
   'QPushButton[search-match="true"]': "border: 2px solid #D4A736;"
+
+  # Use gold for checkboxes and radio buttons to match WoW theme
+  'QCheckBox::indicator:checked': "background-color: #D4A736; border-color: #D4A736;"
+  'QCheckBox::indicator:hover': "border-color: #D4A736;"
+  'QRadioButton::indicator:checked': "background-color: #D4A736; border-color: #D4A736;"
+  'QRadioButton::indicator:hover': "border-color: #D4A736;"
