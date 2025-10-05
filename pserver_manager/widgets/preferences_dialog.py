@@ -11,21 +11,24 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
     QDialog,
+    QFileDialog,
     QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
+    QPushButton,
     QStackedWidget,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QTreeWidgetItemIterator,
     QVBoxLayout,
     QWidget,
 )
 
 from qtframework.utils.search import SearchHighlighter, collect_searchable_text
 from qtframework.widgets import Button, ConfigEditorWidget, ConfigFieldDescriptor, HBox
-from qtframework.widgets.buttons import ButtonVariant
+from qtframework.widgets.buttons import ButtonSize, ButtonVariant
 
 
 if TYPE_CHECKING:
@@ -150,45 +153,67 @@ class PreferencesDialog(QDialog):
 
         layout.addWidget(self.search_box)
 
-        # Navigation list
-        self.nav_list = QListWidget()
-        self.nav_list.setObjectName("preferencesNav")
-        self.nav_list.setFrameShape(QListWidget.Shape.NoFrame)
-        self.nav_list.setSpacing(4)
+        # Navigation tree
+        self.nav_tree = QTreeWidget()
+        self.nav_tree.setObjectName("preferencesNav")
+        self.nav_tree.setHeaderHidden(True)
+        self.nav_tree.setFrameShape(QTreeWidget.Shape.NoFrame)
+        self.nav_tree.itemClicked.connect(self._on_tree_item_clicked)
 
-        # Add categories (reorganized)
-        self.categories = [
-            ("Application", "Application settings, paths, and updates"),
-            ("Appearance", "Theme and visual display options"),
-            ("Network", "Connection and ping settings"),
-        ]
+        # Populate tree with hierarchical structure
+        self._populate_tree()
 
-        for name, tooltip in self.categories:
-            item = QListWidgetItem(name)
-            item.setToolTip(tooltip)
-            self.nav_list.addItem(item)
-
-        self.nav_list.setCurrentRow(0)
-        self.nav_list.currentRowChanged.connect(self._on_category_changed)
-
-        layout.addWidget(self.nav_list)
+        layout.addWidget(self.nav_tree)
         layout.addStretch()
 
         return sidebar
 
+    def _populate_tree(self) -> None:
+        """Populate the navigation tree with categories."""
+        # General category with subcategories
+        general_item = QTreeWidgetItem(self.nav_tree, ["General"])
+        general_item.setExpanded(True)
+
+        application_item = QTreeWidgetItem(general_item, ["Application"])
+        application_item.setToolTip(0, "Application settings, paths, and updates")
+        application_item.setData(0, Qt.ItemDataRole.UserRole, 0)  # Page index
+
+        appearance_item = QTreeWidgetItem(general_item, ["Appearance"])
+        appearance_item.setToolTip(0, "Theme and visual display options")
+        appearance_item.setData(0, Qt.ItemDataRole.UserRole, 1)  # Page index
+
+        network_item = QTreeWidgetItem(general_item, ["Network"])
+        network_item.setToolTip(0, "Connection and ping settings")
+        network_item.setData(0, Qt.ItemDataRole.UserRole, 2)  # Page index
+
+        # Games category (for future expansion)
+        games_item = QTreeWidgetItem(self.nav_tree, ["Games"])
+        games_item.setExpanded(True)
+
+        wow_item = QTreeWidgetItem(games_item, ["World of Warcraft"])
+        wow_item.setToolTip(0, "WoW-specific settings")
+        wow_item.setData(0, Qt.ItemDataRole.UserRole, 3)  # Page index 3
+
+        # Select first item by default (Application)
+        self.nav_tree.setCurrentItem(application_item)
+
     def _create_pages(self) -> None:
         """Create all category pages."""
-        # Application page
+        # Application page (index 0)
         application_page = self._create_application_page()
         self.pages.addWidget(application_page)
 
-        # Appearance page
+        # Appearance page (index 1)
         appearance_page = self._create_appearance_page()
         self.pages.addWidget(appearance_page)
 
-        # Network page
+        # Network page (index 2)
         network_page = self._create_network_page()
         self.pages.addWidget(network_page)
+
+        # WoW settings page (index 3)
+        wow_page = self._create_wow_page()
+        self.pages.addWidget(wow_page)
 
     def _create_page_container(self, title: str, description: str = None) -> tuple[QWidget, QVBoxLayout]:
         """Create a standard page container.
@@ -352,14 +377,306 @@ class PreferencesDialog(QDialog):
         layout.addStretch()
         return page
 
-    def _on_category_changed(self, index: int) -> None:
-        """Handle category selection change.
+    def _create_wow_page(self) -> QWidget:
+        """Create the World of Warcraft settings page."""
+        page, layout = self._create_page_container(
+            "World of Warcraft",
+            "Configure WoW client version locations"
+        )
+
+        # Version installations group
+        versions_group = QGroupBox("Installed Versions")
+        versions_layout = QVBoxLayout(versions_group)
+        versions_layout.setSpacing(12)
+        versions_layout.setContentsMargins(12, 12, 12, 12)
+
+        # Store version widgets for easy access
+        self.wow_version_widgets = {}
+
+        # Common WoW versions to configure
+        wow_versions = [
+            ("vanilla", "Vanilla (1.12.1)", "games.wow.versions.vanilla.path"),
+            ("tbc", "TBC (2.4.3)", "games.wow.versions.tbc.path"),
+            ("wotlk", "WotLK (3.3.5a)", "games.wow.versions.wotlk.path"),
+            ("cata", "Cataclysm (4.3.4)", "games.wow.versions.cata.path"),
+        ]
+
+        for version_id, version_label, config_key in wow_versions:
+            version_widget = self._create_wow_version_row(
+                version_id, version_label, config_key
+            )
+            self.wow_version_widgets[version_id] = version_widget
+            versions_layout.addWidget(version_widget)
+
+        # Scan button
+        scan_layout = HBox(spacing=8)
+        scan_layout.add_stretch()
+
+        scan_btn = Button("Scan Parent Folder", variant=ButtonVariant.SECONDARY)
+        scan_btn.setToolTip("Select a parent folder to scan for multiple WoW versions")
+        scan_btn.clicked.connect(self._scan_wow_parent_folder)
+        scan_layout.add_widget(scan_btn)
+
+        versions_layout.addWidget(scan_layout)
+
+        layout.addWidget(versions_group)
+        layout.addStretch()
+        return page
+
+    def _create_wow_version_row(self, version_id: str, version_label: str, config_key: str) -> QWidget:
+        """Create a row for configuring a WoW version installation.
 
         Args:
-            index: Selected category index
+            version_id: Version identifier (e.g., 'vanilla')
+            version_label: Display label (e.g., 'Vanilla (1.12.1)')
+            config_key: Config key to store the path
+
+        Returns:
+            Widget containing the version configuration row
         """
-        if index >= 0:
-            self.pages.setCurrentIndex(index)
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        # Label
+        label = QLabel(f"<b>{version_label}</b>")
+        layout.addWidget(label)
+
+        # Path selection row
+        path_row = HBox(spacing=8)
+
+        # Path display
+        path_field = QLineEdit()
+        path_field.setPlaceholderText("Not configured")
+        path_field.setReadOnly(True)
+        current_path = self.config_manager.get(config_key, "")
+        if current_path:
+            path_field.setText(current_path)
+            # Verify on load
+            self._verify_wow_path(path_field, current_path, version_id)
+
+        path_field.setObjectName(f"wow_path_{version_id}")
+        path_row.add_widget(path_field, stretch=1)
+
+        # Browse button
+        browse_btn = Button(
+            "Browse...",
+            variant=ButtonVariant.SECONDARY,
+            size=ButtonSize.COMPACT
+        )
+        browse_btn.setMinimumWidth(80)
+        browse_btn.clicked.connect(
+            lambda: self._browse_wow_folder(version_id, version_label, config_key, path_field)
+        )
+        path_row.add_widget(browse_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
+
+        # Clear button
+        clear_btn = Button(
+            "Clear",
+            variant=ButtonVariant.SECONDARY,
+            size=ButtonSize.COMPACT
+        )
+        clear_btn.setMinimumWidth(80)
+        clear_btn.clicked.connect(
+            lambda: self._clear_wow_path(config_key, path_field)
+        )
+        path_row.add_widget(clear_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
+
+        layout.addWidget(path_row)
+
+        # Status label
+        status_label = QLabel("")
+        status_label.setObjectName(f"wow_status_{version_id}")
+        status_label.setWordWrap(True)
+        layout.addWidget(status_label)
+
+        return container
+
+    def _browse_wow_folder(self, version_id: str, version_label: str, config_key: str, path_field: QLineEdit) -> None:
+        """Browse for WoW installation folder.
+
+        Args:
+            version_id: Version identifier
+            version_label: Display label for the version
+            config_key: Config key to store the path
+            path_field: Line edit to update with the selected path
+        """
+        current_path = path_field.text()
+        start_dir = current_path if current_path and os.path.exists(current_path) else str(Path.home())
+
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            f"Select {version_label} Installation Folder",
+            start_dir,
+            QFileDialog.Option.ShowDirsOnly
+        )
+
+        if folder:
+            path_field.setText(folder)
+            self.config_manager.set(config_key, folder)
+            self._verify_wow_path(path_field, folder, version_id)
+
+    def _clear_wow_path(self, config_key: str, path_field: QLineEdit) -> None:
+        """Clear a WoW version path.
+
+        Args:
+            config_key: Config key to clear
+            path_field: Line edit to clear
+        """
+        path_field.setText("")
+        self.config_manager.set(config_key, "")
+
+        # Clear status label
+        version_id = config_key.split('.')[-2]  # Extract version_id from key
+        status_label = self.findChild(QLabel, f"wow_status_{version_id}")
+        if status_label:
+            status_label.setText("")
+
+    def _verify_wow_path(self, path_field: QLineEdit, folder_path: str, version_id: str) -> bool:
+        """Verify a WoW installation folder.
+
+        Args:
+            path_field: Line edit showing the path
+            folder_path: Path to verify
+            version_id: Expected version identifier
+
+        Returns:
+            True if valid, False otherwise
+        """
+        status_label = self.findChild(QLabel, f"wow_status_{version_id}")
+        if not status_label:
+            return False
+
+        path = Path(folder_path)
+
+        if not path.exists():
+            status_label.setText("❌ Path does not exist")
+            status_label.setStyleSheet("color: #CC3333;")
+            return False
+
+        # Check for WoW.exe or Wow.exe
+        wow_exe = path / "WoW.exe"
+        wow_exe_lower = path / "Wow.exe"
+
+        if not (wow_exe.exists() or wow_exe_lower.exists()):
+            status_label.setText("❌ WoW.exe not found in this folder")
+            status_label.setStyleSheet("color: #CC3333;")
+            return False
+
+        # Try to detect version
+        detected_version = self._detect_wow_version(path)
+        if detected_version:
+            status_label.setText(f"✓ Detected: {detected_version}")
+            status_label.setStyleSheet("color: #5FBF3F;")
+            return True
+        else:
+            status_label.setText("✓ Valid WoW installation (version detection failed)")
+            status_label.setStyleSheet("color: #8FBF3F;")
+            return True
+
+    def _detect_wow_version(self, wow_path: Path) -> str:
+        """Detect WoW version from installation folder.
+
+        Args:
+            wow_path: Path to WoW installation
+
+        Returns:
+            Version string or empty string if detection failed
+        """
+        # Check for readme files that often contain version info
+        readme_files = ["Readme.txt", "README.txt", "readme.txt"]
+
+        for readme_name in readme_files:
+            readme_path = wow_path / readme_name
+            if readme_path.exists():
+                try:
+                    with open(readme_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read(1024)  # Read first 1KB
+                        # Look for version patterns
+                        import re
+                        version_match = re.search(r'(?:Version|v\.?)\s*(\d+\.\d+\.\d+)', content, re.IGNORECASE)
+                        if version_match:
+                            return version_match.group(1)
+                except Exception:
+                    pass
+
+        # Check Data folder for patch files
+        data_path = wow_path / "Data"
+        if data_path.exists():
+            # Common patch files by version
+            version_indicators = {
+                "patch-3.MPQ": "3.3.5a",
+                "patch-2.MPQ": "2.4.3",
+                "patch.MPQ": "1.12.1",
+            }
+
+            for patch_file, version in version_indicators.items():
+                if (data_path / patch_file).exists():
+                    return version
+
+        return ""
+
+    def _scan_wow_parent_folder(self) -> None:
+        """Scan a parent folder for multiple WoW installations."""
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select Parent Folder to Scan",
+            str(Path.home()),
+            QFileDialog.Option.ShowDirsOnly
+        )
+
+        if not folder:
+            return
+
+        parent_path = Path(folder)
+        found_versions = {}
+
+        # Scan subdirectories
+        for subdir in parent_path.iterdir():
+            if subdir.is_dir():
+                # Check if it's a WoW installation
+                if (subdir / "WoW.exe").exists() or (subdir / "Wow.exe").exists():
+                    detected_version = self._detect_wow_version(subdir)
+                    if detected_version:
+                        found_versions[detected_version] = str(subdir)
+
+        # Map detected versions to our version IDs
+        version_mapping = {
+            "1.12": "vanilla",
+            "1.12.1": "vanilla",
+            "2.4": "tbc",
+            "2.4.3": "tbc",
+            "3.3": "wotlk",
+            "3.3.5": "wotlk",
+            "3.3.5a": "wotlk",
+            "4.3": "cata",
+            "4.3.4": "cata",
+        }
+
+        # Auto-assign found versions
+        for detected_ver, path in found_versions.items():
+            for ver_prefix, version_id in version_mapping.items():
+                if detected_ver.startswith(ver_prefix):
+                    config_key = f"games.wow.versions.{version_id}.path"
+                    path_field = self.findChild(QLineEdit, f"wow_path_{version_id}")
+                    if path_field:
+                        path_field.setText(path)
+                        self.config_manager.set(config_key, path)
+                        self._verify_wow_path(path_field, path, version_id)
+                    break
+
+    def _on_tree_item_clicked(self, item: QTreeWidgetItem, column: int) -> None:
+        """Handle tree item click.
+
+        Args:
+            item: Clicked tree item
+            column: Column index
+        """
+        # Only handle child items (leaf nodes with page data)
+        page_index = item.data(0, Qt.ItemDataRole.UserRole)
+        if page_index is not None and page_index >= 0:
+            self.pages.setCurrentIndex(page_index)
             # Apply search highlighting to the newly displayed page
             self._highlight_current_page()
 
@@ -381,50 +698,81 @@ class PreferencesDialog(QDialog):
         # Show/hide clear action
         self.clear_action.setVisible(bool(text))
 
-        # If empty, show all categories and clear highlights
+        # If empty, show all items and clear highlights
         if not search_text:
-            for i in range(self.nav_list.count()):
-                item = self.nav_list.item(i)
+            iterator = QTreeWidgetItemIterator(self.nav_tree)
+            while iterator.value():
+                item = iterator.value()
                 item.setHidden(False)
+                iterator += 1
             self._highlight_current_page()
             return
 
-        # Filter categories and track which ones are visible
-        first_visible_index = -1
-        current_index = self.nav_list.currentRow()
+        # Filter tree items and track visibility
+        first_visible_item = None
+        current_item = self.nav_tree.currentItem()
         current_is_visible = False
 
-        for i in range(self.nav_list.count()):
-            item = self.nav_list.item(i)
-            category_name = item.text()
+        # Track which parent categories should be visible
+        visible_parents = set()
 
-            # Check if category name matches
-            category_matches = search_text in category_name.lower()
+        # First pass: check all child items
+        iterator = QTreeWidgetItemIterator(self.nav_tree)
+        while iterator.value():
+            item = iterator.value()
+            item_text = item.text(0)
+            parent = item.parent()
 
-            # Check if any content in the page matches
-            content_matches = self._search_page_content(i, search_text)
+            # Check if this is a child item (has a parent)
+            if parent:
+                page_index = item.data(0, Qt.ItemDataRole.UserRole)
 
-            # Show item if either category name or content matches
-            matches = category_matches or content_matches
-            item.setHidden(not matches)
+                # Check if item name matches
+                item_matches = search_text in item_text.lower()
 
-            # Track first visible item
-            if matches and first_visible_index == -1:
-                first_visible_index = i
+                # Check if page content matches
+                content_matches = False
+                if page_index is not None and page_index >= 0:
+                    content_matches = self._search_page_content(page_index, search_text)
 
-            # Check if current selection is still visible
-            if i == current_index and matches:
-                current_is_visible = True
+                matches = item_matches or content_matches
+                item.setHidden(not matches)
 
-        # If current selection is hidden, select the first visible category
-        if not current_is_visible and first_visible_index >= 0:
-            self.nav_list.setCurrentRow(first_visible_index)
+                if matches:
+                    visible_parents.add(parent)
+                    if first_visible_item is None:
+                        first_visible_item = item
+                    if item == current_item:
+                        current_is_visible = True
+            else:
+                # This is a parent category, will handle visibility in second pass
+                pass
+
+            iterator += 1
+
+        # Second pass: show/hide parent categories based on whether they have visible children
+        iterator = QTreeWidgetItemIterator(self.nav_tree)
+        while iterator.value():
+            item = iterator.value()
+            if item.parent() is None:  # Parent category
+                # Show parent if it has any visible children or matches search
+                has_visible_children = item in visible_parents
+                parent_matches = search_text in item.text(0).lower()
+                item.setHidden(not (has_visible_children or parent_matches))
+                # Expand parent if it has matches
+                if has_visible_children:
+                    item.setExpanded(True)
+            iterator += 1
+
+        # If current selection is hidden, select the first visible item
+        if not current_is_visible and first_visible_item:
+            self.nav_tree.setCurrentItem(first_visible_item)
         # If current selection is still visible, just update highlights
         elif current_is_visible:
             self._highlight_current_page()
         # If no matches, clear the selection and highlights
-        elif first_visible_index == -1:
-            self.nav_list.setCurrentRow(-1)
+        elif first_visible_item is None:
+            self.nav_tree.setCurrentItem(None)
             # Clear highlights since nothing is selected
             if self.pages.currentWidget():
                 self.search_highlighter.clear(self.pages.currentWidget())
