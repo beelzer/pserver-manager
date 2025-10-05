@@ -12,3 +12,13 @@ rates: 1x
 population: High
 language: English
 description: ChromieCraft is a fan-made progressive Wrath of the Lich King server that delves deeper into exploring the original lore of the game.
+scraping:
+  url: https://www.chromiecraft.com/apps/server-status/
+  use_browser: true
+  cache_duration: 600  # 10 minutes - ChromieCraft has strict rate limiting
+  total:
+    regex: 'There are\s*(\d+)\s+players\s+online'
+  alliance:
+    regex: '(\d+)\s*-\s*\d+'
+  horde:
+    regex: '\d+\s*-\s*(\d+)'

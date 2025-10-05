@@ -16,6 +16,7 @@ description: Nighthaven PvP is Progressive Vanilla WoW Gaming with Blizz-like co
 scraping:
   url: https://elysium-project.org/main/stat
   use_browser: false
+  cache_duration: 180  # 3 minutes - moderate rate limiting
   total:
     regex: 'Online</th>\s*<td[^>]*>(\d+)'
   alliance:

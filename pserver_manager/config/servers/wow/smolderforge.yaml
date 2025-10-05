@@ -13,3 +13,10 @@ rates: Instant 70
 population: Medium
 language: English
 description: Smolderforge is an instant-70 PvP private server for TBC (patch 2.4.3) with active arenas and battlegrounds since 2008.
+scraping:
+  url: https://www.smolderforge.com/
+  use_browser: false
+  cache_duration: 180  # 3 minutes
+  uptime:
+    css: '.server-uptime'
+    regex: 'Uptime:\s*(.+?)(?:\s*$|<)'

@@ -15,6 +15,7 @@ description: The oldest and most dedicated WoW server Community since 2010.
 scraping:
   url: https://truewow.org/status
   use_browser: false
+  cache_duration: 180  # 3 minutes - moderate rate limiting
   alliance:
     regex: 'alliance\.gif[^>]*>[^<]*</th>\s*<th>(\d+)'
   horde:
