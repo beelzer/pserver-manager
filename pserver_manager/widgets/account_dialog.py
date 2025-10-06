@@ -212,19 +212,19 @@ class AccountDialog(QDialog):
         self.current_account = account
 
         # Populate form
-        self.username_input.value = account.username
-        self.password_input.value = account.password
-        self.email_input.value = account.email
-        self.notes_input.value = account.notes
+        self.username_input.setText(account.username)
+        self.password_input.setText(account.password)
+        self.email_input.setText(account.email)
+        self.notes_input.setText(account.notes)
         self.primary_cb.setChecked(account.is_primary)
 
     def _add_account(self) -> None:
         """Add a new account."""
         # Clear form and enable it
-        self.username_input.value = ""
-        self.password_input.value = ""
-        self.email_input.value = ""
-        self.notes_input.value = ""
+        self.username_input.setText("")
+        self.password_input.setText("")
+        self.email_input.setText("")
+        self.notes_input.setText("")
         self.primary_cb.setChecked(False)
         self.current_account = None
         self._set_form_enabled(True)
@@ -250,8 +250,8 @@ class AccountDialog(QDialog):
 
     def _save_current_account(self) -> None:
         """Save the current account."""
-        username = self.username_input.value.strip()
-        password = self.password_input.value
+        username = self.username_input.text().strip()
+        password = self.password_input.text()
 
         if not username:
             from PySide6.QtWidgets import QMessageBox
@@ -267,8 +267,8 @@ class AccountDialog(QDialog):
             server_id=self.server.id,
             username=username,
             password=password,
-            email=self.email_input.value.strip(),
-            notes=self.notes_input.value.strip(),
+            email=self.email_input.text().strip(),
+            notes=self.notes_input.text().strip(),
             is_primary=self.primary_cb.isChecked()
         )
 
