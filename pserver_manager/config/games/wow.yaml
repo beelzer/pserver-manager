@@ -108,6 +108,12 @@ server_schema:
     default: ""
     description: "Discord invite code (e.g., 'ShEQcFJd')"
 
+  - name: reddit
+    type: string
+    required: false
+    default: ""
+    description: "Subreddit name (e.g., 'KronosWoW')"
+
   - name: host
     type: string
     required: false

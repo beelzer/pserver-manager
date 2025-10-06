@@ -489,7 +489,29 @@ class MainWindow(BaseWindow):
         Args:
             server_id: Selected server ID
         """
-        # Server selected - no notification needed
+        # Find the server
+        server = None
+        for s in self._all_servers:
+            if s.id == server_id:
+                server = s
+                break
+
+        if not server:
+            return
+
+        # Show/hide Reddit panel based on whether server has Reddit defined
+        if server.reddit:
+            self._reddit_panel.set_subreddit(server.reddit)
+            # Fetch Reddit posts
+            self._reddit_helper.start_fetching(server.reddit, limit=15, sort="hot")
+            # Show menubar button and expand panel
+            self._reddit_menubar_button.show()
+            if self._reddit_panel.is_collapsed():
+                self._reddit_panel.expand()
+        else:
+            # No Reddit for this server - hide panel
+            self._reddit_menubar_button.hide()
+            self._reddit_panel.collapse()
 
     def _on_server_double_clicked(self, server_id: str) -> None:
         """Handle server double click.

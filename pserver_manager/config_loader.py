@@ -99,6 +99,7 @@ class ServerDefinition:
         self.uptime: str = data.get("uptime", "-")
         self.description: str = data.get("description", "")
         self.icon: str = data.get("icon", "")
+        self.reddit: str = data.get("reddit", "")
         self.ping_ms: int = -1  # -1 means not pinged yet
 
     def to_server(self) -> Server:

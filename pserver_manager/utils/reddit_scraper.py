@@ -31,7 +31,10 @@ class RedditPost:
         created = datetime.fromtimestamp(self.created_utc, timezone.utc)
         diff = now - created
 
-        if diff.days > 0:
+        if diff.days >= 365:
+            years = diff.days // 365
+            return f"{years}y ago"
+        elif diff.days > 0:
             return f"{diff.days}d ago"
         elif diff.seconds >= 3600:
             return f"{diff.seconds // 3600}h ago"
