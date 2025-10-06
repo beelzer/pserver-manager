@@ -187,6 +187,16 @@ class ServerTable(VBox):
 
             # Populate columns based on column definitions
             for col_idx, col in enumerate(self._columns):
+                # Handle links column specially with custom widget
+                if col.id == "links":
+                    links_widget = self._create_links_widget(server)
+                    self._table.setCellWidget(row, col_idx, links_widget)
+                    # Create empty item for sorting purposes
+                    item = QTableWidgetItem()
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                    self._table.setItem(row, col_idx, item)
+                    continue
+
                 value = self._get_column_value(server, col.id)
                 # Use NumericTableWidgetItem for columns that need numeric sorting
                 if col.id in ["players", "status"]:
@@ -242,6 +252,56 @@ class ServerTable(VBox):
                 self._table.setItem(row, col_idx, item)
 
         self._table.setSortingEnabled(True)
+
+    def _create_links_widget(self, server: ServerDefinition) -> QWidget:
+        """Create a widget with clickable link icons for a server.
+
+        Args:
+            server: Server definition
+
+        Returns:
+            Widget containing link icons
+        """
+        import webbrowser
+        from PySide6.QtWidgets import QWidget, QHBoxLayout, QPushButton
+
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setSpacing(4)
+
+        # Define link types and their icons (using Unicode/emoji for theme compatibility)
+        links = [
+            ("🌐", server.website, "Visit website"),
+            ("💬", f"https://discord.gg/{server.get_field('discord', '')}" if server.get_field('discord', '') else None, "Join Discord"),
+            ("📱", f"https://reddit.com/r/{server.get_field('reddit', '')}" if server.get_field('reddit', '') else None, "Visit Reddit"),
+            ("📝", server.get_field('register_url', ''), "Register account"),
+            ("🔑", server.get_field('login_url', ''), "Login/manage account"),
+        ]
+
+        for icon, url, tooltip in links:
+            if url:
+                btn = QPushButton(icon)
+                btn.setToolTip(tooltip)
+                btn.setFixedSize(24, 24)
+                btn.setStyleSheet("""
+                    QPushButton {
+                        border: none;
+                        background: transparent;
+                        font-size: 14px;
+                        padding: 0px;
+                    }
+                    QPushButton:hover {
+                        background: rgba(128, 128, 128, 0.2);
+                        border-radius: 3px;
+                    }
+                """)
+                btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn.clicked.connect(lambda checked=False, u=url: webbrowser.open(u))
+                layout.addWidget(btn)
+
+        layout.addStretch()
+        return widget
 
     def _get_column_value(self, server: ServerDefinition, column_id: str) -> Any:
         """Get the value for a specific column.

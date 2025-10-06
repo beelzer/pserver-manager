@@ -56,12 +56,8 @@ table_columns:
     label: "Status"
     width: content
 
-  - id: website
-    label: "Website"
-    width: content
-
-  - id: discord
-    label: "Discord"
+  - id: links
+    label: "Links"
     width: content
 
   - id: realm_name
