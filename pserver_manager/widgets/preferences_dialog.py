@@ -194,6 +194,10 @@ class PreferencesDialog(QDialog):
         network_item.setToolTip(0, "Connection and ping settings")
         network_item.setData(0, Qt.ItemDataRole.UserRole, 2)  # Page index
 
+        accounts_item = QTreeWidgetItem(general_item, ["Accounts"])
+        accounts_item.setToolTip(0, "Manage server accounts and passwords")
+        accounts_item.setData(0, Qt.ItemDataRole.UserRole, 3)  # Page index
+
         # Games category (for future expansion)
         games_item = QTreeWidgetItem(self.nav_tree, ["Games"])
         games_item.setExpanded(True)
@@ -220,6 +224,10 @@ class PreferencesDialog(QDialog):
         # Network page (index 2)
         network_page = self._create_network_page()
         self.pages.addWidget(network_page)
+
+        # Accounts page (index 3)
+        accounts_page = self._create_accounts_page()
+        self.pages.addWidget(accounts_page)
 
         # WoW server pages (auto-generated from config)
         self._create_wow_server_pages()
@@ -401,6 +409,221 @@ class PreferencesDialog(QDialog):
         layout.addWidget(self.network_editor)
         layout.addStretch()
         return page
+
+    def _create_accounts_page(self) -> QWidget:
+        """Create the Accounts management page."""
+        from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView
+        from pserver_manager.utils.account_manager import get_account_manager
+
+        page, layout = self._create_page_container(
+            "Accounts",
+            "Manage saved accounts for all servers"
+        )
+
+        # Create table
+        self.accounts_table = QTableWidget()
+        self.accounts_table.setColumnCount(5)
+        self.accounts_table.setHorizontalHeaderLabels(["Server", "Username", "Email", "Notes", "Primary"])
+        self.accounts_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.accounts_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.accounts_table.setAlternatingRowColors(True)
+        self.accounts_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+
+        # Configure columns
+        header = self.accounts_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Server
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Username
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # Email
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)  # Notes
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)  # Primary
+
+        # Context menu
+        self.accounts_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.accounts_table.customContextMenuRequested.connect(self._show_account_context_menu)
+
+        # Double-click to edit
+        self.accounts_table.itemDoubleClicked.connect(lambda: self._edit_selected_account())
+
+        layout.addWidget(self.accounts_table)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        from qtframework.widgets import Button
+        from qtframework.widgets.buttons import ButtonVariant
+
+        add_btn = Button("Add Account", variant=ButtonVariant.PRIMARY)
+        add_btn.clicked.connect(self._add_account_from_prefs)
+        button_layout.addWidget(add_btn)
+
+        edit_btn = Button("Edit", variant=ButtonVariant.SECONDARY)
+        edit_btn.clicked.connect(self._edit_selected_account)
+        button_layout.addWidget(edit_btn)
+        self.edit_account_btn = edit_btn
+
+        delete_btn = Button("Delete", variant=ButtonVariant.SECONDARY)
+        delete_btn.clicked.connect(self._delete_selected_account)
+        button_layout.addWidget(delete_btn)
+        self.delete_account_btn = delete_btn
+
+        layout.addLayout(button_layout)
+
+        # Load accounts
+        self._refresh_accounts_table()
+
+        return page
+
+    def _refresh_accounts_table(self) -> None:
+        """Refresh the accounts table with all accounts."""
+        from PySide6.QtWidgets import QTableWidgetItem
+        from pserver_manager.utils.account_manager import get_account_manager
+
+        self.accounts_table.setRowCount(0)
+        account_manager = get_account_manager()
+
+        # Get all servers and their accounts
+        row = 0
+        for server in self.servers:
+            accounts = account_manager.get_accounts(server.id)
+            for account in accounts:
+                self.accounts_table.insertRow(row)
+
+                # Server name
+                server_item = QTableWidgetItem(server.name)
+                server_item.setData(Qt.ItemDataRole.UserRole, (server.id, account.username))
+                self.accounts_table.setItem(row, 0, server_item)
+
+                # Username
+                self.accounts_table.setItem(row, 1, QTableWidgetItem(account.username))
+
+                # Email
+                self.accounts_table.setItem(row, 2, QTableWidgetItem(account.email))
+
+                # Notes
+                self.accounts_table.setItem(row, 3, QTableWidgetItem(account.notes))
+
+                # Primary
+                primary_text = "⭐ Yes" if account.is_primary else ""
+                self.accounts_table.setItem(row, 4, QTableWidgetItem(primary_text))
+
+                row += 1
+
+        # Enable/disable buttons based on selection
+        has_selection = self.accounts_table.currentRow() >= 0
+        self.edit_account_btn.setEnabled(has_selection)
+        self.delete_account_btn.setEnabled(has_selection)
+
+    def _show_account_context_menu(self, pos) -> None:
+        """Show context menu for account.
+
+        Args:
+            pos: Menu position
+        """
+        from PySide6.QtWidgets import QMenu
+
+        item = self.accounts_table.itemAt(pos)
+        if not item:
+            return
+
+        menu = QMenu(self.accounts_table)
+        edit_action = menu.addAction("✏️ Edit Account")
+        delete_action = menu.addAction("🗑️ Delete Account")
+
+        action = menu.exec(self.accounts_table.viewport().mapToGlobal(pos))
+        if action == edit_action:
+            self._edit_selected_account()
+        elif action == delete_action:
+            self._delete_selected_account()
+
+    def _add_account_from_prefs(self) -> None:
+        """Add a new account from preferences."""
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QComboBox
+        from qtframework.widgets import Button
+        from qtframework.widgets.buttons import ButtonVariant
+
+        # Create dialog to select server
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Select Server")
+        dialog.setMinimumWidth(400)
+
+        layout = QVBoxLayout(dialog)
+
+        label = QLabel("Select a server to add an account for:")
+        layout.addWidget(label)
+
+        server_combo = QComboBox()
+        for server in self.servers:
+            server_combo.addItem(server.name, server)
+        layout.addWidget(server_combo)
+
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        cancel_btn = Button("Cancel", variant=ButtonVariant.SECONDARY)
+        cancel_btn.clicked.connect(dialog.reject)
+        button_layout.addWidget(cancel_btn)
+
+        ok_btn = Button("OK", variant=ButtonVariant.PRIMARY)
+        ok_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(ok_btn)
+
+        layout.addLayout(button_layout)
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            server = server_combo.currentData()
+            if server:
+                from pserver_manager.widgets.account_dialog import AccountDialog
+                account_dialog = AccountDialog(server, self)
+                account_dialog.exec()
+                self._refresh_accounts_table()
+
+    def _edit_selected_account(self) -> None:
+        """Edit the selected account."""
+        row = self.accounts_table.currentRow()
+        if row < 0:
+            return
+
+        # Get server_id and username from first column
+        item = self.accounts_table.item(row, 0)
+        server_id, username = item.data(Qt.ItemDataRole.UserRole)
+
+        # Find the server
+        server = None
+        for s in self.servers:
+            if s.id == server_id:
+                server = s
+                break
+
+        if server:
+            from pserver_manager.widgets.account_dialog import AccountDialog
+            dialog = AccountDialog(server, self)
+            # TODO: Pre-select the account
+            dialog.exec()
+            self._refresh_accounts_table()
+
+    def _delete_selected_account(self) -> None:
+        """Delete the selected account."""
+        from qtframework.widgets.advanced import ConfirmDialog
+        from pserver_manager.utils.account_manager import get_account_manager
+
+        row = self.accounts_table.currentRow()
+        if row < 0:
+            return
+
+        # Get server_id and username
+        item = self.accounts_table.item(row, 0)
+        server_id, username = item.data(Qt.ItemDataRole.UserRole)
+        server_name = item.text()
+
+        if ConfirmDialog.confirm(
+            "Delete Account",
+            f"Are you sure you want to delete the account '{username}' for {server_name}?",
+            self
+        ):
+            account_manager = get_account_manager()
+            account_manager.remove_account(server_id, username)
+            self._refresh_accounts_table()
 
     def _create_wow_page(self) -> QWidget:
         """Create the World of Warcraft settings page."""
