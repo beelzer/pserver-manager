@@ -703,6 +703,8 @@ class MainWindow(BaseWindow):
             config_manager=self._config_manager,
             theme_manager=self.application.theme_manager,
             app_paths=self._app_paths,
+            servers=self._all_servers,
+            game_defs=self._game_defs,
             parent=self,
         )
         if dialog.exec():
