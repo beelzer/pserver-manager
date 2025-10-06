@@ -190,6 +190,11 @@ class AccountDialog(QDialog):
 
         self.remove_btn.setEnabled(len(accounts) > 0)
 
+        # If no accounts exist, enable the form for adding a new one
+        if len(accounts) == 0:
+            self._set_form_enabled(True)
+            self.username_input.setFocus()
+
     def _on_account_selected(self, current: QListWidgetItem | None, previous: QListWidgetItem | None) -> None:
         """Handle account selection.
 
