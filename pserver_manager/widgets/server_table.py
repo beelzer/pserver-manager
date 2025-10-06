@@ -17,6 +17,29 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
 )
 
+
+class NumericTableWidgetItem(QTableWidgetItem):
+    """Table widget item that sorts numerically when numeric data is available."""
+
+    def __lt__(self, other):
+        """Compare items for sorting.
+
+        Uses numeric data (UserRole + 1) if available, otherwise falls back to text comparison.
+        """
+        # Try to get numeric sort data
+        self_data = self.data(Qt.ItemDataRole.UserRole + 1)
+        other_data = other.data(Qt.ItemDataRole.UserRole + 1)
+
+        # If both have numeric data, compare numerically
+        if self_data is not None and other_data is not None:
+            try:
+                return float(self_data) < float(other_data)
+            except (ValueError, TypeError):
+                pass
+
+        # Fall back to text comparison
+        return super().__lt__(other)
+
 from qtframework.widgets import VBox
 from qtframework.widgets.badge import Badge, BadgeVariant
 from qtframework.widgets.advanced import ConfirmDialog
@@ -162,7 +185,11 @@ class ServerTable(VBox):
             # Populate columns based on column definitions
             for col_idx, col in enumerate(self._columns):
                 value = self._get_column_value(server, col.id)
-                item = QTableWidgetItem(str(value))
+                # Use NumericTableWidgetItem for columns that need numeric sorting
+                if col.id in ["players", "status"]:
+                    item = NumericTableWidgetItem(str(value))
+                else:
+                    item = QTableWidgetItem(str(value))
 
                 # Store server ID in first column
                 if col_idx == 0:
@@ -178,8 +205,14 @@ class ServerTable(VBox):
                         if icon_path.exists():
                             item.setIcon(QIcon(str(icon_path)))
 
-                # Add tooltip for player count showing faction breakdown
+                # Set numeric sort data for players column
                 if col.id == "players":
+                    # Set the actual player count as numeric data for proper sorting
+                    # Use -1 for unknown/offline servers so they sort to bottom
+                    player_count = server.players if server.players != -1 else -1
+                    item.setData(Qt.ItemDataRole.UserRole + 1, player_count)
+
+                    # Add tooltip for player count showing faction breakdown
                     if server.alliance_count is not None or server.horde_count is not None:
                         tooltip_parts = []
                         if server.alliance_count is not None:
@@ -188,6 +221,12 @@ class ServerTable(VBox):
                             tooltip_parts.append(f"Horde: {server.horde_count}")
                         if tooltip_parts:
                             item.setToolTip(" | ".join(tooltip_parts))
+
+                # Set numeric sort data for status column (by ping)
+                if col.id == "status":
+                    # Use ping_ms for sorting, with -1 (not pinged) sorting to bottom
+                    # Offline servers have ping_ms of 9999, so they sort after online
+                    item.setData(Qt.ItemDataRole.UserRole + 1, server.ping_ms if server.ping_ms != -1 else 999999)
 
                 # Special formatting for certain columns
                 if col.id in ["players", "uptime", "status"]:
