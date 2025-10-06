@@ -1,0 +1,42 @@
+id: grinderscape
+name: Grinderscape
+website: https://www.grinderscape.org/
+discord: ""
+host: ""
+version_id: osrs
+status: online
+icon: servers/runescape/grinderscape.png
+server_type: Economy
+rates: Custom
+population: Medium
+language: English
+description: A popular Old School RuneScape private server with custom content
+downloads:
+  - name: Windows (64-bit)
+    url: https://www.grinderscape.org/assets/game_client/runelite/GrinderScapeSetup.exe
+  - name: Windows (32-bit)
+    url: https://www.grinderscape.org/assets/game_client/runelite/GrinderScapeSetup32.exe
+  - name: Windows (ARM64)
+    url: https://www.grinderscape.org/assets/game_client/runelite/GrinderScapeSetupAArch64.exe
+  - name: macOS (Intel)
+    url: https://www.grinderscape.org/assets/game_client/runelite/GrinderScape-x64.dmg
+  - name: macOS (Apple Silicon)
+    url: https://www.grinderscape.org/assets/game_client/runelite/GrinderScape-aarch64.dmg
+  - name: Linux (x64)
+    url: https://www.grinderscape.org/assets/game_client/runelite/GrinderScape.AppImage
+  - name: Linux (ARM64)
+    url: https://www.grinderscape.org/assets/game_client/runelite/GrinderScape-aarch64.AppImage
+  - name: Universal (JAR)
+    url: https://www.grinderscape.org/assets/game_client/runelite/GrinderScape.jar
+scraping:
+  url: https://www.grinderscape.org/
+  use_browser: false
+  cache_duration: 300
+  total:
+    css: span.online-count
+    extract: text
+_metadata:
+  source: bundled
+  app_version: 1.0.0
+  content_hash: ""
+  last_updated: ''

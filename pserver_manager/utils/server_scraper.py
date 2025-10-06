@@ -12,35 +12,62 @@ from bs4 import BeautifulSoup
 
 
 def normalize_uptime(uptime_str: str) -> str:
-    """Normalize uptime to consistent short format (e.g., '3mo 4d 12h 35m').
+    """Normalize uptime to condensed decimal format (e.g., '3.5d', '2.1w').
 
     Args:
         uptime_str: Uptime string in various formats
 
     Returns:
-        Normalized uptime string
+        Normalized uptime string with decimals
     """
     if not uptime_str:
         return uptime_str
 
     # Extract numbers and their units
     # Matches patterns like: "4 d. 12 h. 35 m. 56 s.", "5 days 4 hours 51 minutes", "3 months 2 days", etc.
+    years = re.search(r'(\d+)\s*(?:y(?:ears?)?\.?)', uptime_str, re.IGNORECASE)
     months = re.search(r'(\d+)\s*(?:mo(?:nths?)?\.?)', uptime_str, re.IGNORECASE)
+    weeks = re.search(r'(\d+)\s*(?:w(?:eeks?)?\.?)', uptime_str, re.IGNORECASE)
     days = re.search(r'(\d+)\s*(?:d(?:ays?)?\.?)', uptime_str, re.IGNORECASE)
     hours = re.search(r'(\d+)\s*(?:h(?:ours?)?\.?)', uptime_str, re.IGNORECASE)
     minutes = re.search(r'(\d+)\s*(?:m(?:in(?:utes?)?)?\.?)', uptime_str, re.IGNORECASE)
 
-    parts = []
+    # Convert everything to minutes
+    total_minutes = 0
+    if years:
+        total_minutes += int(years.group(1)) * 525600  # 365 days
     if months:
-        parts.append(f"{months.group(1)}mo")
+        total_minutes += int(months.group(1)) * 43200  # 30 days
+    if weeks:
+        total_minutes += int(weeks.group(1)) * 10080  # 7 days
     if days:
-        parts.append(f"{days.group(1)}d")
+        total_minutes += int(days.group(1)) * 1440  # 24 hours
     if hours:
-        parts.append(f"{hours.group(1)}h")
+        total_minutes += int(hours.group(1)) * 60
     if minutes:
-        parts.append(f"{minutes.group(1)}m")
+        total_minutes += int(minutes.group(1))
 
-    return ' '.join(parts) if parts else uptime_str
+    if total_minutes == 0:
+        return uptime_str  # Return original if we couldn't parse
+
+    # Convert to appropriate unit with decimal precision
+    if total_minutes >= 525600:  # >= 1 year
+        value = total_minutes / 525600
+        return f"{value:.1f}y"
+    elif total_minutes >= 43200:  # >= 1 month
+        value = total_minutes / 43200
+        return f"{value:.1f}mo"
+    elif total_minutes >= 10080:  # >= 1 week
+        value = total_minutes / 10080
+        return f"{value:.1f}w"
+    elif total_minutes >= 1440:  # >= 1 day
+        value = total_minutes / 1440
+        return f"{value:.1f}d"
+    elif total_minutes >= 60:  # >= 1 hour
+        value = total_minutes / 60
+        return f"{value:.1f}h"
+    else:
+        return f"{total_minutes}m"
 
 
 if TYPE_CHECKING:

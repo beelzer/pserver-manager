@@ -1,0 +1,40 @@
+id: runerebels
+name: RuneRebels
+website: https://www.runerebels.com/
+discord: XXptEk5
+reddit: runerebels
+host: "world1.runerebels.com:43594"
+version_id: osrs
+status: online
+icon: servers/runescape/runerebels.png
+server_type: Economy
+rates: 1x
+population: Low
+language: English
+description: A RuneScape 2 private server focused on authenticity
+downloads:
+  - name: Windows
+    url: https://www.runerebels.com/download/zips/windows/runerebels.zip
+  - name: macOS (Java)
+    url: https://www.runerebels.com/download/zips/macos/java/runerebels.zip
+  - name: macOS (Standalone)
+    url: https://www.runerebels.com/download/zips/macos/standalone/runerebels.zip
+  - name: Linux
+    url: https://www.runerebels.com/download/zips/linux/runerebels.zip
+  - name: macOS (Legacy)
+    url: https://www.runerebels.com/download/zips/mac_os_x_legacy/runerebels.zip
+  - name: Java (Cross-Platform)
+    url: https://www.runerebels.com/download/zips/java/runerebels.zip
+scraping:
+  url: https://www.runerebels.com/landing/index.php?action=worlds
+  use_browser: false
+  cache_duration: 300
+  total:
+    regex: Players Online:.*?<a[^>]*>(\d+)</a>
+  uptime:
+    regex: <td>(\d+\s+days?\s+\d+\s+hrs?\s+\d+\s+min)</td>\s*<td>world1\.runerebels\.com</td>
+_metadata:
+  source: bundled
+  app_version: 1.0.0
+  content_hash: ""
+  last_updated: ''

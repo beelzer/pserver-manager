@@ -1,0 +1,130 @@
+# Old School RuneScape Private Server Definition
+id: runescape
+name: "RuneScape"
+icon: "games/runescape.png"
+reddit: "RSPS"
+
+# RuneScape Versions
+versions:
+  - id: osrs
+    name: "Old School RuneScape"
+    description: "2007-era RuneScape"
+    icon: "versions/runescape-osrs.png"
+
+  - id: rs2
+    name: "RuneScape 2"
+    description: "RuneScape 2 (2004-2007)"
+    icon: "versions/runescape-rs2.png"
+
+  - id: rs3
+    name: "RuneScape 3"
+    description: "Modern RuneScape"
+    icon: "versions/runescape-rs3.png"
+
+# Table columns for RuneScape servers
+table_columns:
+  - id: name
+    label: "Server Name"
+    width: stretch
+
+  - id: status
+    label: "Status"
+    width: content
+
+  - id: website
+    label: "Website"
+    width: content
+
+  - id: discord
+    label: "Discord"
+    width: content
+
+  - id: server_type
+    label: "Type"
+    width: content
+
+  - id: rates
+    label: "XP Rates"
+    width: content
+
+  - id: population
+    label: "Population"
+    width: content
+
+  - id: version
+    label: "Version"
+    width: content
+
+  - id: language
+    label: "Language"
+    width: content
+
+  - id: uptime
+    label: "Uptime"
+    width: content
+
+# Required fields for RuneScape server configs
+server_schema:
+  - name: name
+    type: string
+    required: true
+
+  - name: website
+    type: string
+    required: true
+
+  - name: discord
+    type: string
+    required: false
+    default: ""
+    description: "Discord invite code"
+
+  - name: reddit
+    type: string
+    required: false
+    default: ""
+    description: "Subreddit name"
+
+  - name: host
+    type: string
+    required: false
+    default: ""
+    description: "Server host/IP"
+
+  - name: version_id
+    type: string
+    required: true
+
+  - name: status
+    type: string
+    required: true
+    values: [online, offline, maintenance, starting]
+
+  - name: server_type
+    type: string
+    default: "Economy"
+    description: "Economy, PvP, Ironman, etc."
+
+  - name: rates
+    type: string
+    default: "Custom"
+    description: "XP rates (e.g., 1x, 5x, Custom)"
+
+  - name: population
+    type: string
+    default: "Medium"
+    description: "Low, Medium, High, or actual number"
+
+  - name: language
+    type: string
+    default: "English"
+
+  - name: description
+    type: string
+    default: ""
+
+  - name: downloads
+    type: list
+    required: false
+    default: []
+    description: "List of client downloads with name and url"

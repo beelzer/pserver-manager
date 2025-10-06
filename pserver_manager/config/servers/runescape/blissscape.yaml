@@ -1,0 +1,25 @@
+id: blissscape
+name: Blissscape
+website: https://blissscape.com/
+discord: GEgw2wFq
+host: ""
+version_id: osrs
+status: online
+icon: servers/runescape/blissscape.png
+server_type: Economy
+rates: Custom
+population: Low
+language: English
+description: An Old School RuneScape private server
+scraping:
+  url: https://blissscape.com/
+  use_browser: false
+  cache_duration: 300
+  total:
+    css: td#now
+    extract: text
+_metadata:
+  source: bundled
+  app_version: 1.0.0
+  content_hash: ""
+  last_updated: ''

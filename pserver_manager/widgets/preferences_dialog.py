@@ -191,9 +191,11 @@ class PreferencesDialog(QDialog):
         games_item = QTreeWidgetItem(self.nav_tree, ["Games"])
         games_item.setExpanded(True)
 
-        wow_item = QTreeWidgetItem(games_item, ["World of Warcraft"])
-        wow_item.setToolTip(0, "WoW-specific settings")
-        wow_item.setData(0, Qt.ItemDataRole.UserRole, 3)  # Page index 3
+        # WoW category with auto-generated server sub-pages
+        self._add_wow_servers(games_item)
+
+        # RuneScape category with auto-generated server sub-pages
+        self._add_runescape_servers(games_item)
 
         # Select first item by default (Application)
         self.nav_tree.setCurrentItem(application_item)
@@ -212,9 +214,11 @@ class PreferencesDialog(QDialog):
         network_page = self._create_network_page()
         self.pages.addWidget(network_page)
 
-        # WoW settings page (index 3)
-        wow_page = self._create_wow_page()
-        self.pages.addWidget(wow_page)
+        # WoW server pages (auto-generated from config)
+        self._create_wow_server_pages()
+
+        # RuneScape server pages (auto-generated from config)
+        self._create_runescape_server_pages()
 
     def _create_page_container(self, title: str, description: str = None) -> tuple[QWidget, QVBoxLayout]:
         """Create a standard page container.
@@ -948,6 +952,347 @@ class PreferencesDialog(QDialog):
         # Refresh the appearance editor dropdown to show the correct selection
         if hasattr(self, "appearance_editor"):
             self.appearance_editor.refresh_values()
+
+    def _add_wow_servers(self, games_item: QTreeWidgetItem) -> None:
+        """Add WoW servers to sidebar dynamically from config.
+
+        Args:
+            games_item: Games tree item to add WoW under
+        """
+        from pserver_manager.config_loader import ConfigLoader
+
+        # Load servers from config
+        config_dir = Path(__file__).parent.parent / "config"
+        config_loader = ConfigLoader(
+            config_dir=config_dir,
+            servers_dir=self.app_paths.get_servers_dir(),
+        )
+        all_servers = config_loader.load_servers()
+
+        # Filter WoW servers
+        wow_servers = [s for s in all_servers if s.game_id == "wow"]
+
+        if not wow_servers:
+            return
+
+        # Create WoW parent item
+        wow_item = QTreeWidgetItem(games_item, ["World of Warcraft"])
+        wow_item.setToolTip(0, "WoW server settings")
+        wow_item.setExpanded(True)
+
+        # Store server info for page creation
+        self.wow_servers = []
+
+        # Add each server as a sub-item
+        page_index = 3  # Start at index 3
+        for server in sorted(wow_servers, key=lambda s: s.name):
+            server_item = QTreeWidgetItem(wow_item, [server.name])
+            server_item.setToolTip(0, f"{server.name} client and settings")
+            server_item.setData(0, Qt.ItemDataRole.UserRole, page_index)
+
+            self.wow_servers.append((server, page_index))
+            page_index += 1
+
+        # Update RuneScape page indices to start after WoW servers
+        self.runescape_start_index = page_index
+
+    def _add_runescape_servers(self, games_item: QTreeWidgetItem) -> None:
+        """Add RuneScape servers to sidebar dynamically from config.
+
+        Args:
+            games_item: Games tree item to add RuneScape under
+        """
+        from pserver_manager.config_loader import ConfigLoader
+
+        # Load servers from config
+        config_dir = Path(__file__).parent.parent / "config"
+        config_loader = ConfigLoader(
+            config_dir=config_dir,
+            servers_dir=self.app_paths.get_servers_dir(),
+        )
+        all_servers = config_loader.load_servers()
+
+        # Filter RuneScape servers
+        runescape_servers = [s for s in all_servers if s.game_id == "runescape"]
+
+        if not runescape_servers:
+            return
+
+        # Create RuneScape parent item
+        runescape_item = QTreeWidgetItem(games_item, ["RuneScape"])
+        runescape_item.setToolTip(0, "RuneScape server settings")
+        runescape_item.setExpanded(True)
+
+        # Store server info for page creation
+        self.runescape_servers = []
+
+        # Add each server as a sub-item
+        # Start after WoW servers (or at 4 if no WoW servers)
+        page_index = getattr(self, 'runescape_start_index', 4)
+        for server in sorted(runescape_servers, key=lambda s: s.name):
+            server_item = QTreeWidgetItem(runescape_item, [server.name])
+            server_item.setToolTip(0, f"{server.name} client and downloads")
+            server_item.setData(0, Qt.ItemDataRole.UserRole, page_index)
+
+            self.runescape_servers.append((server, page_index))
+            page_index += 1
+
+    def _create_wow_server_pages(self) -> None:
+        """Create pages for each WoW server."""
+        if not hasattr(self, "wow_servers"):
+            return
+
+        for server, page_index in self.wow_servers:
+            page = self._create_wow_server_page(server)
+            self.pages.addWidget(page)
+
+    def _create_wow_server_page(self, server) -> QWidget:
+        """Create a configuration page for a WoW server.
+
+        Args:
+            server: ServerDefinition for the server
+
+        Returns:
+            Configured page widget
+        """
+        page, content_layout = self._create_page_container(
+            server.name,
+            f"Configure {server.name} client and realmlist"
+        )
+
+        # Realmlist section
+        realmlist_group = QGroupBox("Realmlist Configuration")
+        realmlist_layout = QVBoxLayout()
+
+        # Host
+        host_row = QHBoxLayout()
+        host_label = QLabel("Host:")
+        host_label.setMinimumWidth(100)
+        host_row.addWidget(host_label)
+
+        host_field = QLineEdit()
+        host_field.setText(server.host)
+        host_field.setReadOnly(True)
+        host_row.addWidget(host_field, stretch=1)
+        realmlist_layout.addLayout(host_row)
+
+        # Realm name (if available)
+        if hasattr(server, 'realm_name') and server.realm_name:
+            realm_row = QHBoxLayout()
+            realm_label = QLabel("Realm Name:")
+            realm_label.setMinimumWidth(100)
+            realm_row.addWidget(realm_label)
+
+            realm_field = QLineEdit()
+            realm_field.setText(server.realm_name)
+            realm_field.setReadOnly(True)
+            realm_row.addWidget(realm_field, stretch=1)
+            realmlist_layout.addLayout(realm_row)
+
+        realmlist_group.setLayout(realmlist_layout)
+        content_layout.addWidget(realmlist_group)
+
+        # Client location section
+        client_group = QGroupBox("Client Location")
+        client_layout = QVBoxLayout()
+
+        config_key = f"games.wow.servers.{server.id.split('.')[1]}.path"
+        current_path = self.config_manager.get(config_key, "")
+
+        location_row = QHBoxLayout()
+
+        path_field = QLineEdit()
+        path_field.setText(current_path)
+        path_field.setPlaceholderText(f"Path to {server.name} WoW client installation")
+        path_field.textChanged.connect(
+            lambda text: self.config_manager.set(config_key, text)
+        )
+        location_row.addWidget(path_field, stretch=1)
+
+        # Get the exact height of the text field (account for border)
+        field_height = path_field.sizeHint().height() - 2
+
+        browse_btn = Button("Browse...", size=ButtonSize.COMPACT)
+        browse_btn.setFixedHeight(field_height)
+        # Override button padding to match input field exactly
+        browse_btn.setStyleSheet(f"QPushButton {{ padding: 0px 8px; max-height: {field_height}px; min-height: {field_height}px; }}")
+        browse_btn.clicked.connect(
+            lambda: self._browse_wow_server_folder(server.name, config_key, path_field)
+        )
+        location_row.addWidget(browse_btn)
+
+        clear_btn = Button("Clear", size=ButtonSize.COMPACT)
+        clear_btn.setFixedHeight(field_height)
+        # Override button padding to match input field exactly
+        clear_btn.setStyleSheet(f"QPushButton {{ padding: 0px 8px; max-height: {field_height}px; min-height: {field_height}px; }}")
+        clear_btn.clicked.connect(
+            lambda: self._clear_path(config_key, path_field)
+        )
+        location_row.addWidget(clear_btn)
+
+        client_layout.addLayout(location_row)
+        client_group.setLayout(client_layout)
+        content_layout.addWidget(client_group)
+
+        content_layout.addStretch()
+        return page
+
+    def _browse_wow_server_folder(self, server_name: str, config_key: str, path_field: QLineEdit) -> None:
+        """Browse for WoW server client installation folder.
+
+        Args:
+            server_name: Server display name
+            config_key: Config key to update
+            path_field: Path field widget to update
+        """
+        current_path = path_field.text() or os.path.expanduser("~")
+
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            f"Select {server_name} WoW Client Folder",
+            current_path,
+        )
+
+        if folder:
+            path_field.setText(folder)
+            self.config_manager.set(config_key, folder)
+
+    def _create_runescape_server_pages(self) -> None:
+        """Create pages for each RuneScape server."""
+        if not hasattr(self, "runescape_servers"):
+            return
+
+        for server, page_index in self.runescape_servers:
+            page = self._create_runescape_server_page(server)
+            self.pages.addWidget(page)
+
+    def _create_runescape_server_page(self, server) -> QWidget:
+        """Create a configuration page for a RuneScape server.
+
+        Args:
+            server: ServerDefinition for the server
+
+        Returns:
+            Configured page widget
+        """
+        page, content_layout = self._create_page_container(
+            server.name,
+            f"Configure {server.name} client and downloads"
+        )
+
+        # Downloads section
+        if server.data.get("downloads"):
+            downloads_group = QGroupBox("Client Downloads")
+            downloads_layout = QVBoxLayout()
+
+            for download in server.data["downloads"]:
+                download_row = QHBoxLayout()
+
+                label = QLabel(download["name"])
+                label.setMinimumWidth(200)
+                download_row.addWidget(label)
+
+                download_btn = Button(
+                    "Download",
+                    size=ButtonSize.COMPACT,
+                    variant=ButtonVariant.PRIMARY
+                )
+                # Match the compact style of browse/clear buttons
+                download_btn.setStyleSheet("QPushButton { padding: 0px 8px; }")
+                download_btn.clicked.connect(
+                    lambda url=download["url"]: self._open_download_link(url)
+                )
+                download_row.addWidget(download_btn)
+                download_row.addStretch()
+
+                downloads_layout.addLayout(download_row)
+
+            downloads_group.setLayout(downloads_layout)
+            content_layout.addWidget(downloads_group)
+
+        # Client location section
+        client_group = QGroupBox("Client Location")
+        client_layout = QVBoxLayout()
+
+        config_key = f"games.runescape.servers.{server.id.split('.')[1]}.path"
+        current_path = self.config_manager.get(config_key, "")
+
+        location_row = QHBoxLayout()
+
+        path_field = QLineEdit()
+        path_field.setText(current_path)
+        path_field.setPlaceholderText(f"Path to {server.name} client installation")
+        path_field.textChanged.connect(
+            lambda text: self.config_manager.set(config_key, text)
+        )
+        location_row.addWidget(path_field, stretch=1)
+
+        # Get the exact height of the text field (account for border)
+        field_height = path_field.sizeHint().height() - 2
+
+        browse_btn = Button("Browse...", size=ButtonSize.COMPACT)
+        browse_btn.setFixedHeight(field_height)
+        # Override button padding to match input field exactly
+        browse_btn.setStyleSheet(f"QPushButton {{ padding: 0px 8px; max-height: {field_height}px; min-height: {field_height}px; }}")
+        browse_btn.clicked.connect(
+            lambda: self._browse_runescape_folder(server.name, config_key, path_field)
+        )
+        location_row.addWidget(browse_btn)
+
+        clear_btn = Button("Clear", size=ButtonSize.COMPACT)
+        clear_btn.setFixedHeight(field_height)
+        # Override button padding to match input field exactly
+        clear_btn.setStyleSheet(f"QPushButton {{ padding: 0px 8px; max-height: {field_height}px; min-height: {field_height}px; }}")
+        clear_btn.clicked.connect(
+            lambda: self._clear_path(config_key, path_field)
+        )
+        location_row.addWidget(clear_btn)
+
+        client_layout.addLayout(location_row)
+        client_group.setLayout(client_layout)
+        content_layout.addWidget(client_group)
+
+        content_layout.addStretch()
+        return page
+
+    def _open_download_link(self, url: str) -> None:
+        """Open a download link in the default browser.
+
+        Args:
+            url: Download URL to open
+        """
+        import webbrowser
+        webbrowser.open(url)
+
+    def _browse_runescape_folder(self, server_name: str, config_key: str, path_field: QLineEdit) -> None:
+        """Browse for RuneScape client installation folder.
+
+        Args:
+            server_name: Server display name
+            config_key: Config key to update
+            path_field: Path field widget to update
+        """
+        current_path = path_field.text() or os.path.expanduser("~")
+
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            f"Select {server_name} Client Folder",
+            current_path,
+        )
+
+        if folder:
+            path_field.setText(folder)
+            self.config_manager.set(config_key, folder)
+
+    def _clear_path(self, config_key: str, path_field: QLineEdit) -> None:
+        """Clear a path configuration.
+
+        Args:
+            config_key: Config key to clear
+            path_field: Path field widget to clear
+        """
+        path_field.clear()
+        self.config_manager.set(config_key, "")
 
     def _on_ok_clicked(self) -> None:
         """Handle OK button click."""
