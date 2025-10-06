@@ -211,12 +211,12 @@ class AccountDialog(QDialog):
         account = current.data(Qt.ItemDataRole.UserRole)
         self.current_account = account
 
-        # Populate form
-        self.username_input.setText(account.username)
-        self.password_input.setText(account.password)
-        self.email_input.setText(account.email)
-        self.notes_input.setText(account.notes)
-        self.primary_cb.setChecked(account.is_primary)
+        # Populate form (handle None values)
+        self.username_input.setText(account.username or "")
+        self.password_input.setText(account.password or "")
+        self.email_input.setText(account.email or "")
+        self.notes_input.setText(account.notes or "")
+        self.primary_cb.setChecked(account.is_primary if account.is_primary is not None else False)
 
     def _add_account(self) -> None:
         """Add a new account."""

@@ -145,11 +145,11 @@ class AccountManager:
         # Return copies with decrypted passwords
         return [
             ServerAccount(
-                username=acc.username,
-                password=self._decrypt_password(acc.password),
-                email=acc.email,
-                notes=acc.notes,
-                is_primary=acc.is_primary
+                username=acc.username or "",
+                password=self._decrypt_password(acc.password) if acc.password else "",
+                email=acc.email or "",
+                notes=acc.notes or "",
+                is_primary=acc.is_primary if acc.is_primary is not None else False
             )
             for acc in accounts
         ]
