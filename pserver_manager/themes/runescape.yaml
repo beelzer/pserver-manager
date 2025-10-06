@@ -1,0 +1,260 @@
+name: runescape
+display_name: Old School RuneScape
+description: Classic OSRS-inspired theme with iconic grey stone backgrounds and bright yellow text
+author: PServer Manager
+version: 1.0.0
+
+tokens:
+  primitive:
+    # Classic OSRS grey stone interface
+    gray_50: "#0F0F0F"   # almost black
+    gray_100: "#1E1E1E"  # very dark grey
+    gray_200: "#2D2D2D"  # dark grey
+    gray_300: "#3C3C3C"  # medium dark grey
+    gray_400: "#4B4B4B"  # medium grey (classic OSRS stone)
+    gray_500: "#5A5A5A"  # medium light grey
+    gray_600: "#6E6E6E"  # light grey
+    gray_700: "#8C8C8C"  # lighter grey
+    gray_800: "#ABABAB"  # very light grey
+    gray_900: "#CACACA"  # near white grey
+    gray_950: "#E9E9E9"  # lightest grey
+
+    # Classic OSRS yellow/gold - Primary (the iconic yellow text)
+    primary_50: "#221A00"
+    primary_100: "#332700"
+    primary_200: "#4D3A00"
+    primary_300: "#664D00"
+    primary_400: "#806000"
+    primary_500: "#FFCC00"  # iconic OSRS yellow
+    primary_600: "#FFD633"  # bright yellow
+    primary_700: "#FFE066"  # lighter yellow
+    primary_800: "#FFEB99"  # very light yellow
+    primary_900: "#FFF5CC"
+    primary_950: "#FFFAE6"
+
+    # OSRS Orange (for accents) - Secondary
+    secondary_50: "#1F0800"
+    secondary_100: "#331000"
+    secondary_200: "#4D1800"
+    secondary_300: "#662000"
+    secondary_400: "#802800"
+    secondary_500: "#FF6600"  # OSRS bright orange
+    secondary_600: "#FF8533"  # brighter orange
+    secondary_700: "#FFA366"  # light orange
+    secondary_800: "#FFC299"  # very light orange
+    secondary_900: "#FFE0CC"
+    secondary_950: "#FFF0E6"
+
+    # HP Red - Error
+    error_50: "#1F0505"
+    error_100: "#330808"
+    error_200: "#4D0C0C"
+    error_300: "#661010"
+    error_400: "#801414"
+    error_500: "#CC2020"  # HP red
+    error_600: "#E63434"
+    error_700: "#FF4848"
+    error_800: "#FF6C6C"
+    error_900: "#FF9090"
+    error_950: "#FFB4B4"
+
+    # Skill level-up green - Success
+    success_50: "#0A1F05"
+    success_100: "#143308"
+    success_200: "#1E4D0C"
+    success_300: "#286610"
+    success_400: "#328014"
+    success_500: "#4ACC20"  # level-up green
+    success_600: "#5EE634"
+    success_700: "#72FF48"
+    success_800: "#96FF6C"
+    success_900: "#BAFF90"
+    success_950: "#DEFFB4"
+
+    # Warning yellow/orange
+    warning_50: "#1F1505"
+    warning_100: "#332208"
+    warning_200: "#4D330C"
+    warning_300: "#664410"
+    warning_400: "#805514"
+    warning_500: "#CC8820"  # warning yellow
+    warning_600: "#E6A234"
+    warning_700: "#FFBC48"
+    warning_800: "#FFD06C"
+    warning_900: "#FFE490"
+    warning_950: "#FFF8B4"
+
+    # Prayer/Magic cyan - Info
+    info_50: "#051F1F"
+    info_100: "#083333"
+    info_200: "#0C4D4D"
+    info_300: "#106666"
+    info_400: "#148080"
+    info_500: "#20CCCC"  # prayer/magic cyan
+    info_600: "#34E6E6"
+    info_700: "#48FFFF"
+    info_800: "#6CFFFF"
+    info_900: "#90FFFF"
+    info_950: "#B4FFFF"
+
+    white: "#FAF7F0"
+    black: "#0A0703"
+    transparent: "transparent"
+
+  semantic:
+    # Classic OSRS grey stone interface
+    bg_primary: "#1E1E1E"
+    bg_secondary: "#2D2D2D"
+    bg_tertiary: "#3C3C3C"
+    bg_elevated: "#2D2D2D"
+    bg_overlay: "rgba(15, 15, 15, 0.94)"
+
+    # Iconic OSRS yellow text (like in-game chat and menus)
+    fg_primary: "#FFCC00"
+    fg_secondary: "#FFD633"
+    fg_tertiary: "#ABABAB"
+    fg_on_accent: "#0F0F0F"
+    fg_on_dark: "#FFCC00"
+    fg_on_light: "#0F0F0F"
+
+    # OSRS yellow/orange interactive colors
+    action_primary: "#FFCC00"
+    action_primary_hover: "#FFD633"
+    action_primary_active: "#806000"
+    action_secondary: "#FF6600"
+    action_secondary_hover: "#FF8533"
+    action_secondary_active: "#802800"
+
+    # Feedback colors
+    feedback_success: "#4ACC20"
+    feedback_warning: "#CC8820"
+    feedback_error: "#CC2020"
+    feedback_info: "#20CCCC"
+
+    # Borders
+    border_default: "#4B4B4B"
+    border_subtle: "#3C3C3C"
+    border_strong: "#6E6E6E"
+    border_focus: "#FFCC00"
+
+    # States
+    state_hover: "#3C3C3C"
+    state_selected: "#FFCC00"
+    state_disabled: "#4B4B4B"
+    state_focus: "#FFCC00"
+
+  components:
+    # Classic OSRS yellow buttons
+    button_primary_bg: "#FFCC00"
+    button_primary_fg: "#0F0F0F"
+    button_primary_border: "#FFD633"
+    button_secondary_bg: "#4B4B4B"
+    button_secondary_fg: "#FFCC00"
+    button_secondary_border: "#6E6E6E"
+
+    # Dark inputs with yellow focus
+    input_bg: "#2D2D2D"
+    input_fg: "#FFCC00"
+    input_border: "#4B4B4B"
+    input_placeholder: "#8C8C8C"
+
+    # Tables with yellow headers
+    table_header_bg: "#2D2D2D"
+    table_header_fg: "#FFCC00"
+    table_row_bg: "#1E1E1E"
+    table_row_bg_alt: "#2D2D2D"
+    table_row_hover: "#3C3C3C"
+    table_row_selected: "#FFCC00"
+    table_border: "#4B4B4B"
+
+    # Dark menus with yellow text
+    menu_bg: "#2D2D2D"
+    menu_fg: "#FFCC00"
+    menu_hover_bg: "#3C3C3C"
+    menu_hover_fg: "#FFD633"
+    menu_selected_bg: "#FFCC00"
+    menu_selected_fg: "#0F0F0F"
+
+    # Scrollbars
+    scrollbar_bg: "#2D2D2D"
+    scrollbar_thumb: "#4B4B4B"
+    scrollbar_thumb_hover: "#5A5A5A"
+
+    # Tabs with yellow active state
+    tab_bg: "#2D2D2D"
+    tab_fg: "#ABABAB"
+    tab_active_bg: "#1E1E1E"
+    tab_active_fg: "#FFCC00"
+    tab_hover_bg: "#3C3C3C"
+    tab_hover_fg: "#CACACA"
+
+    # Chart colors (skill-inspired)
+    chart_1: "#FFCC00"  # yellow (main)
+    chart_2: "#4ACC20"  # green (woodcutting/herblore)
+    chart_3: "#20CCCC"  # cyan (magic/prayer)
+    chart_4: "#CC2020"  # red (strength/attack)
+    chart_5: "#FF6600"  # orange (combat)
+    chart_6: "#CC8820"  # gold (crafting)
+    chart_grid: "#4B4B4B"
+    chart_axis: "#8C8C8C"
+
+    # OSRS-style badges
+    badge_primary_bg: "#FFCC00"
+    badge_primary_fg: "#0E0D0C"
+    badge_primary_border: "#FFD633"
+
+    badge_success_bg: "#4ACC20"
+    badge_success_fg: "#0E0D0C"
+    badge_success_border: "#5EE634"
+
+    badge_warning_bg: "#CC8820"
+    badge_warning_fg: "#0E0D0C"
+    badge_warning_border: "#E6A234"
+
+    badge_danger_bg: "#CC2020"
+    badge_danger_fg: "#FFCC00"
+    badge_danger_border: "#E63434"
+
+    badge_info_bg: "#20CCCC"
+    badge_info_fg: "#0E0D0C"
+    badge_info_border: "#34E6E6"
+
+    badge_light_bg: "#CACACA"
+    badge_light_fg: "#0F0F0F"
+    badge_light_border: "#E9E9E9"
+
+    badge_dark_bg: "#1E1E1E"
+    badge_dark_fg: "#FFCC00"
+    badge_dark_border: "#4B4B4B"
+
+  typography:
+    font_family_code: "Consolas"
+
+  syntax:
+    keyword: "#FFCC00"      # OSRS yellow
+    class_name: "#FF6600"   # OSRS orange
+    function: "#FFD633"     # bright yellow
+    string: "#4ACC20"       # green (like text in chat)
+    comment: "#8C8C8C"      # muted grey
+    number: "#FFE066"       # light yellow
+    operator: "#FFCC00"     # OSRS yellow
+    decorator: "#20CCCC"    # cyan
+    constant: "#FF6600"     # OSRS orange
+    variable: "#CACACA"     # light grey
+    parameter: "#FFD633"    # bright yellow
+    type: "#FF6600"         # OSRS orange
+    namespace: "#FFD633"    # bright yellow
+    error: "#CC2020"        # HP red
+    warning: "#CC8820"      # warning gold
+    info: "#20CCCC"         # cyan
+
+custom_styles:
+  'QGroupBox[search-match="true"]': "border: 2px solid #FFCC00; border-radius: 4px;"
+  'QLabel[search-match="true"]': "background-color: rgba(255, 204, 0, 0.2); border-radius: 2px; padding: 2px;"
+  'QPushButton[search-match="true"]': "border: 2px solid #FFCC00;"
+
+  # Use OSRS yellow for checkboxes and radio buttons
+  'QCheckBox::indicator:checked': "background-color: #FFCC00; border-color: #FFCC00;"
+  'QCheckBox::indicator:hover': "border-color: #FFCC00;"
+  'QRadioButton::indicator:checked': "background-color: #FFCC00; border-color: #FFCC00;"
+  'QRadioButton::indicator:hover': "border-color: #FFCC00;"

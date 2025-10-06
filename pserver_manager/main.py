@@ -759,12 +759,16 @@ def main() -> int:
     resource_manager.add_search_path("translations", Path("pserver_manager/translations"))
 
     # Create application with custom resources
+    # Don't load framework built-in themes, but load custom themes
     app = Application(
         argv=sys.argv,
         app_name="PServerManager",
         org_name="PServerManager",
         org_domain="pservermanager.local",
         resource_manager=resource_manager,
+        included_themes=[],  # No framework built-in themes (light/dark/high_contrast)
+        excluded_themes=["monokai"],  # Exclude monokai custom theme
+        include_auto_theme=False,
     )
 
     # Set Fusion style for consistent widget rendering
@@ -785,7 +789,7 @@ def main() -> int:
     window = MainWindow(application=app)
 
     # Apply theme from config after window is initialized
-    saved_theme = window._config_manager.get("ui.theme", "dark")
+    saved_theme = window._config_manager.get("ui.theme", "nord")
     app.theme_manager.set_theme(saved_theme)
 
     window.show()
