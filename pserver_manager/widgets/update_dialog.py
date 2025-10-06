@@ -53,39 +53,62 @@ class UpdateDialog(QDialog):
 
     def _setup_ui(self) -> None:
         """Setup the user interface."""
+        from PySide6.QtWidgets import QScrollArea, QWidget
+
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Create scroll area for content
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        # Content widget inside scroll area
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(16, 16, 16, 16)
+        content_layout.setSpacing(12)
 
         # Summary
         summary = self._create_summary()
-        layout.addWidget(summary)
+        content_layout.addWidget(summary)
 
         # New Servers Section
         if self.update_info.new_servers:
             new_group = self._create_new_servers_section()
-            layout.addWidget(new_group)
+            content_layout.addWidget(new_group)
 
         # Updated Servers Section
         if self.update_info.updated_servers:
             updated_group = self._create_updated_servers_section()
-            layout.addWidget(updated_group)
+            content_layout.addWidget(updated_group)
 
         # Conflicts Section
         if self.update_info.conflicts:
             conflicts_group = self._create_conflicts_section()
-            layout.addWidget(conflicts_group)
+            content_layout.addWidget(conflicts_group)
 
         # New Themes Section
         if self.update_info.new_themes:
             new_themes_group = self._create_new_themes_section()
-            layout.addWidget(new_themes_group)
+            content_layout.addWidget(new_themes_group)
 
         # Updated Themes Section
         if self.update_info.updated_themes:
             updated_themes_group = self._create_updated_themes_section()
-            layout.addWidget(updated_themes_group)
+            content_layout.addWidget(updated_themes_group)
 
-        # Buttons
+        content_layout.addStretch()
+
+        scroll_area.setWidget(content_widget)
+        layout.addWidget(scroll_area, stretch=1)
+
+        # Buttons - fixed at bottom outside scroll area
         button_layout = HBox()
+        button_layout.set_margins(16, 12, 16, 12)
         button_layout.add_stretch()
 
         cancel_btn = Button("Cancel", variant=ButtonVariant.SECONDARY)

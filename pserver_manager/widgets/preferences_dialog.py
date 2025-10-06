@@ -91,10 +91,17 @@ class PreferencesDialog(QDialog):
         separator.setFrameShadow(QFrame.Shadow.Sunken)
         content_layout.addWidget(separator)
 
-        # Content area with stacked pages
+        # Content area with stacked pages - wrapped in a container for consistent sizing
+        pages_container = QWidget()
+        pages_container_layout = QVBoxLayout(pages_container)
+        pages_container_layout.setContentsMargins(0, 0, 0, 0)
+        pages_container_layout.setSpacing(0)
+
         self.pages = QStackedWidget()
         self.pages.setObjectName("preferencesContent")
-        content_layout.addWidget(self.pages, stretch=1)
+        pages_container_layout.addWidget(self.pages)
+
+        content_layout.addWidget(pages_container, stretch=1)
 
         # Create category pages
         self._create_pages()
@@ -221,7 +228,7 @@ class PreferencesDialog(QDialog):
         self._create_runescape_server_pages()
 
     def _create_page_container(self, title: str, description: str = None) -> tuple[QWidget, QVBoxLayout]:
-        """Create a standard page container.
+        """Create a standard page container with scroll support.
 
         Args:
             title: Page title
@@ -230,8 +237,18 @@ class PreferencesDialog(QDialog):
         Returns:
             Tuple of (page widget, content layout)
         """
-        page = QWidget()
-        layout = QVBoxLayout(page)
+        from PySide6.QtWidgets import QScrollArea
+
+        # Create scroll area as the main page widget
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        # Create the actual content widget inside scroll area
+        content_widget = QWidget()
+        layout = QVBoxLayout(content_widget)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
@@ -247,7 +264,10 @@ class PreferencesDialog(QDialog):
             desc_label.setObjectName("pageDescription")
             layout.addWidget(desc_label)
 
-        return page, layout
+        # Set the content widget as the scroll area's widget
+        scroll_area.setWidget(content_widget)
+
+        return scroll_area, layout
 
     def _create_application_page(self) -> QWidget:
         """Create the Application settings page."""

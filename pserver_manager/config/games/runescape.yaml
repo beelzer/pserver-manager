@@ -8,17 +8,62 @@ reddit: "RSPS"
 versions:
   - id: osrs
     name: "Old School RuneScape"
-    description: "2007-era RuneScape"
+    description: "2007-era RuneScape (Official OSRS)"
     icon: "versions/runescape-osrs.png"
+
+  - id: "317"
+    name: "Revision 317"
+    description: "May 2005 - Classic retro (23 skills, Barrows)"
+    icon: "versions/runescape-317.png"
+
+  - id: "377"
+    name: "Revision 377"
+    description: "Late 2005/Early 2006 - Post-Construction"
+    icon: "versions/runescape-377.png"
+
+  - id: "474"
+    name: "Revision 474"
+    description: "October 2007 - True 2007scape (GWD, full Wilderness)"
+    icon: "versions/runescape-474.png"
+
+  - id: "508"
+    name: "Revision 508"
+    description: "September 2008 - RuneScape HD (Summoning, HD graphics)"
+    icon: "versions/runescape-508.png"
+
+  - id: "562"
+    name: "Revision 562"
+    description: "Late 2009 - Peak HD era (RuneTek 5)"
+    icon: "versions/runescape-562.png"
+
+  - id: "634"
+    name: "Revision 634"
+    description: "December 2010 - Nex era (Dungeoneering)"
+    icon: "versions/runescape-634.png"
+
+  - id: "667"
+    name: "Revision 667"
+    description: "Mid 2011 - Post free trade return"
+    icon: "versions/runescape-667.png"
+
+  - id: "718"
+    name: "Revision 718"
+    description: "July 2012 - Final Pre-EoC (most popular Pre-EoC)"
+    icon: "versions/runescape-718.png"
+
+  - id: "742"
+    name: "Revision 742+"
+    description: "November 2012+ - Evolution of Combat / RS3"
+    icon: "versions/runescape-742.png"
 
   - id: rs2
     name: "RuneScape 2"
-    description: "RuneScape 2 (2004-2007)"
+    description: "RuneScape 2 (2004-2007) - Generic"
     icon: "versions/runescape-rs2.png"
 
   - id: rs3
     name: "RuneScape 3"
-    description: "Modern RuneScape"
+    description: "Modern RuneScape / RS3 - Generic"
     icon: "versions/runescape-rs3.png"
 
 # Table columns for RuneScape servers

@@ -160,7 +160,7 @@ class MainWindow(BaseWindow):
         # Create sidebar
         self._sidebar = GameSidebar()
         games = [gd.to_game() for gd in self._game_defs]
-        self._sidebar.set_games(games)
+        self._sidebar.set_games(games, self._all_servers)
         self._sidebar.all_servers_selected.connect(self._on_all_servers_selected)
         self._sidebar.game_selected.connect(self._on_game_selected)
         self._sidebar.version_selected.connect(self._on_version_selected)
@@ -350,6 +350,10 @@ class MainWindow(BaseWindow):
         """Load configuration from YAML files."""
         self._game_defs = self._config_loader.load_games()
         self._all_servers = self._config_loader.load_servers()
+        # Refresh sidebar to update version filters
+        if hasattr(self, '_sidebar'):
+            games = [gd.to_game() for gd in self._game_defs]
+            self._sidebar.set_games(games, self._all_servers)
 
     def _show_all_servers(self) -> None:
         """Show all servers with generic columns."""

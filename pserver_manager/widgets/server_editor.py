@@ -56,7 +56,24 @@ class ServerEditor(QDialog):
 
     def _setup_ui(self) -> None:
         """Set up the user interface."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QScrollArea
+
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Create scroll area for form content
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        # Content widget inside scroll area
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(16, 16, 16, 16)
 
         # Create grouped form based on game schema
         group_box = QGroupBox(f"{self.game.name} Server Configuration")
@@ -87,10 +104,15 @@ class ServerEditor(QDialog):
 
             form_layout.addRow(f"{label_text}:", widget)
 
-        layout.addWidget(group_box)
+        content_layout.addWidget(group_box)
+        content_layout.addStretch()
 
-        # Buttons
+        scroll_area.setWidget(content_widget)
+        layout.addWidget(scroll_area, stretch=1)
+
+        # Buttons - fixed at bottom outside scroll area
         button_layout = QHBoxLayout()
+        button_layout.setContentsMargins(16, 12, 16, 12)
         button_layout.addStretch()
 
         cancel_btn = Button("Cancel", variant=ButtonVariant.SECONDARY)

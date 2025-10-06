@@ -56,14 +56,21 @@ class GameSidebar(VBox):
 
         self.add_widget(self._tree)
 
-    def set_games(self, games: list[Game]) -> None:
+    def set_games(self, games: list[Game], servers: list | None = None) -> None:
         """Set the list of games to display.
 
         Args:
             games: List of games to display
+            servers: Optional list of servers to filter versions (only show versions with servers)
         """
         self._games = {game.id: game for game in games}
         self._tree.clear()
+
+        # Build set of version IDs that have servers
+        used_version_ids = set()
+        if servers:
+            for server in servers:
+                used_version_ids.add((server.game_id, server.version_id))
 
         # Add "All Servers" item at the top
         all_item = QTreeWidgetItem(["All Servers"])
@@ -87,6 +94,10 @@ class GameSidebar(VBox):
             # Add versions as children if they exist
             if game.versions:
                 for version in game.versions:
+                    # If servers list provided, only show versions that have servers
+                    if servers and (game.id, version.id) not in used_version_ids:
+                        continue
+
                     version_item = QTreeWidgetItem([version.name])
                     version_item.setData(
                         0,
