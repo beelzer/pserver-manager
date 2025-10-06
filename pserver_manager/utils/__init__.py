@@ -14,6 +14,7 @@ from pserver_manager.utils.server_scraper import (
     scrape_servers,
     scrape_servers_sync,
 )
+from pserver_manager.utils.svg_icon_loader import SvgIconLoader, get_svg_loader
 
 # Qt integration (optional import)
 try:
@@ -42,4 +43,6 @@ __all__ = [
     "migrate_user_servers",
     "ServerUpdateChecker",
     "UpdateInfo",
+    "SvgIconLoader",
+    "get_svg_loader",
 ]

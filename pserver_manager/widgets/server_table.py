@@ -272,7 +272,7 @@ class ServerTable(VBox):
 
         # Define link types and their icons (using Unicode/emoji for theme compatibility)
         links = [
-            ("🌐", server.website, "Visit website"),
+            ("🌐", server.get_field('website', ''), "Visit website"),
             ("💬", f"https://discord.gg/{server.get_field('discord', '')}" if server.get_field('discord', '') else None, "Join Discord"),
             ("📱", f"https://reddit.com/r/{server.get_field('reddit', '')}" if server.get_field('reddit', '') else None, "Visit Reddit"),
             ("📝", server.get_field('register_url', ''), "Register account"),
