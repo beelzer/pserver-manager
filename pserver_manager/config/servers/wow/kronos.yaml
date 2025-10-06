@@ -13,6 +13,8 @@ rates: 1x
 population: Medium
 language: English
 description: Blizzlike Vanilla WoW experience
+register_url: https://manager.twinstar-wow.com/registration
+login_url: https://manager.twinstar-wow.com/auth/login
 scraping:
   url: https://www.kronos-wow.com/
   use_browser: false

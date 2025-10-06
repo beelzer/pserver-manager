@@ -12,3 +12,5 @@ rates: Custom (Flexible)
 population: Medium
 language: English
 description: Long-standing custom Vanilla
+register_url: https://retro-wow.org/register
+login_url: https://retro-wow.org/

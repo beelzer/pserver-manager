@@ -14,6 +14,8 @@ population: High
 language: English
 description: Nighthaven PvP is Progressive Vanilla WoW Gaming with Blizz-like content.
   It's Vanilla as you remember it.
+register_url: https://elysium-project.org/howtoplay/en
+login_url: https://elysium-project.org/howtoplay/en
 scraping:
   url: https://elysium-project.org/main/stat
   use_browser: false
