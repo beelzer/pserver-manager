@@ -165,9 +165,9 @@ class AppPaths:
         """Get accounts storage file.
 
         Returns:
-            Path to accounts.yaml (in app data, encrypted)
+            Path to accounts.yaml (in user data, encrypted)
         """
-        return self.get_app_data_dir() / "accounts.yaml"
+        return self.get_user_data_dir() / "accounts.yaml"
 
     def ensure_directories(self) -> None:
         """Create all necessary directories if they don't exist."""

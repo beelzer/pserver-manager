@@ -1317,34 +1317,71 @@ class PreferencesDialog(QDialog):
             f"Configure {server.name} client and realmlist"
         )
 
+        # Server Information section
+        info_group = QGroupBox("Server Information")
+        info_layout = QVBoxLayout()
+
+        def add_info_field(label_text: str, value: str, layout=info_layout):
+            """Helper to add a read-only info field."""
+            if value:
+                row = QHBoxLayout()
+                label = QLabel(f"{label_text}:")
+                label.setMinimumWidth(120)
+                row.addWidget(label)
+
+                field = QLineEdit()
+                field.setText(value)
+                field.setReadOnly(True)
+                row.addWidget(field, stretch=1)
+                layout.addLayout(row)
+
+        add_info_field("Version", getattr(server, 'version_id', '').replace('_', ' ').title())
+        add_info_field("Realm Type", getattr(server, 'realm_type', ''))
+        add_info_field("Rates", getattr(server, 'rates', ''))
+        add_info_field("Population", getattr(server, 'population', ''))
+        add_info_field("Language", getattr(server, 'language', ''))
+
+        if hasattr(server, 'description') and server.description:
+            desc_row = QHBoxLayout()
+            desc_label = QLabel("Description:")
+            desc_label.setMinimumWidth(120)
+            desc_label.setAlignment(Qt.AlignmentFlag.AlignTop)
+            desc_row.addWidget(desc_label)
+
+            from PySide6.QtWidgets import QTextEdit
+            desc_field = QTextEdit()
+            desc_field.setPlainText(server.description)
+            desc_field.setReadOnly(True)
+            desc_field.setMaximumHeight(80)
+            desc_row.addWidget(desc_field, stretch=1)
+            info_layout.addLayout(desc_row)
+
+        info_group.setLayout(info_layout)
+        content_layout.addWidget(info_group)
+
+        # Links section
+        links_group = QGroupBox("Server Links")
+        links_layout = QVBoxLayout()
+
+        add_info_field("Website", getattr(server, 'website', ''), links_layout)
+
+        if hasattr(server, 'discord') and server.discord:
+            add_info_field("Discord", f"https://discord.gg/{server.discord}", links_layout)
+
+        add_info_field("Register URL", getattr(server, 'register_url', ''), links_layout)
+        add_info_field("Login URL", getattr(server, 'login_url', ''), links_layout)
+
+        links_group.setLayout(links_layout)
+        content_layout.addWidget(links_group)
+
         # Realmlist section
         realmlist_group = QGroupBox("Realmlist Configuration")
         realmlist_layout = QVBoxLayout()
 
-        # Host
-        host_row = QHBoxLayout()
-        host_label = QLabel("Host:")
-        host_label.setMinimumWidth(100)
-        host_row.addWidget(host_label)
+        add_info_field("Host", server.host, realmlist_layout)
 
-        host_field = QLineEdit()
-        host_field.setText(server.host)
-        host_field.setReadOnly(True)
-        host_row.addWidget(host_field, stretch=1)
-        realmlist_layout.addLayout(host_row)
-
-        # Realm name (if available)
         if hasattr(server, 'realm_name') and server.realm_name:
-            realm_row = QHBoxLayout()
-            realm_label = QLabel("Realm Name:")
-            realm_label.setMinimumWidth(100)
-            realm_row.addWidget(realm_label)
-
-            realm_field = QLineEdit()
-            realm_field.setText(server.realm_name)
-            realm_field.setReadOnly(True)
-            realm_row.addWidget(realm_field, stretch=1)
-            realmlist_layout.addLayout(realm_row)
+            add_info_field("Realm Name", server.realm_name, realmlist_layout)
 
         realmlist_group.setLayout(realmlist_layout)
         content_layout.addWidget(realmlist_group)
@@ -1436,6 +1473,72 @@ class PreferencesDialog(QDialog):
             server.name,
             f"Configure {server.name} client and downloads"
         )
+
+        def add_info_field(label_text: str, value: str, layout):
+            """Helper to add a read-only info field."""
+            if value:
+                row = QHBoxLayout()
+                label = QLabel(f"{label_text}:")
+                label.setMinimumWidth(120)
+                row.addWidget(label)
+
+                field = QLineEdit()
+                field.setText(value)
+                field.setReadOnly(True)
+                row.addWidget(field, stretch=1)
+                layout.addLayout(row)
+
+        # Server Information section
+        info_group = QGroupBox("Server Information")
+        info_layout = QVBoxLayout()
+
+        # Map version_id to readable version name
+        version_name = getattr(server, 'version_id', '').replace('_', ' ').upper()
+        if hasattr(server, 'version_id'):
+            version_id = server.version_id
+            if version_id == 'osrs':
+                version_name = 'Old School RuneScape'
+            elif version_id.isdigit():
+                version_name = f"Revision {version_id}"
+
+        add_info_field("Version", version_name, info_layout)
+        add_info_field("Server Type", getattr(server, 'server_type', ''), info_layout)
+        add_info_field("Rates", getattr(server, 'rates', ''), info_layout)
+        add_info_field("Population", getattr(server, 'population', ''), info_layout)
+        add_info_field("Language", getattr(server, 'language', ''), info_layout)
+
+        if hasattr(server, 'description') and server.description:
+            desc_row = QHBoxLayout()
+            desc_label = QLabel("Description:")
+            desc_label.setMinimumWidth(120)
+            desc_label.setAlignment(Qt.AlignmentFlag.AlignTop)
+            desc_row.addWidget(desc_label)
+
+            from PySide6.QtWidgets import QTextEdit
+            desc_field = QTextEdit()
+            desc_field.setPlainText(server.description)
+            desc_field.setReadOnly(True)
+            desc_field.setMaximumHeight(80)
+            desc_row.addWidget(desc_field, stretch=1)
+            info_layout.addLayout(desc_row)
+
+        info_group.setLayout(info_layout)
+        content_layout.addWidget(info_group)
+
+        # Links section
+        links_group = QGroupBox("Server Links")
+        links_layout = QVBoxLayout()
+
+        add_info_field("Website", getattr(server, 'website', ''), links_layout)
+
+        if hasattr(server, 'discord') and server.discord:
+            add_info_field("Discord", f"https://discord.gg/{server.discord}", links_layout)
+
+        add_info_field("Register URL", getattr(server, 'register_url', ''), links_layout)
+        add_info_field("Login URL", getattr(server, 'login_url', ''), links_layout)
+
+        links_group.setLayout(links_layout)
+        content_layout.addWidget(links_group)
 
         # Downloads section
         if server.data.get("downloads"):
