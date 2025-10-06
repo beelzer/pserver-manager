@@ -74,6 +74,9 @@ class PreferencesDialog(QDialog):
         # Track page indices dynamically
         self._next_page_index = 0
 
+        # Track server field changes for saving
+        self._server_field_changes: dict[str, dict[str, any]] = {}
+
         self.setWindowTitle("Preferences")
         self.setMinimumSize(900, 650)
 
@@ -1336,25 +1339,28 @@ class PreferencesDialog(QDialog):
                 layout.addLayout(row)
 
         add_info_field("Version", getattr(server, 'version_id', '').replace('_', ' ').title())
-        add_info_field("Realm Type", getattr(server, 'realm_type', ''))
-        add_info_field("Rates", getattr(server, 'rates', ''))
-        add_info_field("Population", getattr(server, 'population', ''))
-        add_info_field("Language", getattr(server, 'language', ''))
+        add_info_field("Realm Type", server.get_field('realm_type', ''))
+        add_info_field("Rates", server.get_field('rates', ''))
+        add_info_field("Population", server.get_field('population', ''))
+        add_info_field("Language", server.get_field('language', ''))
 
-        if hasattr(server, 'description') and server.description:
-            desc_row = QHBoxLayout()
-            desc_label = QLabel("Description:")
-            desc_label.setMinimumWidth(120)
-            desc_label.setAlignment(Qt.AlignmentFlag.AlignTop)
-            desc_row.addWidget(desc_label)
+        # Description (editable)
+        desc_row = QHBoxLayout()
+        desc_label = QLabel("Description:")
+        desc_label.setMinimumWidth(120)
+        desc_label.setAlignment(Qt.AlignmentFlag.AlignTop)
+        desc_row.addWidget(desc_label)
 
-            from PySide6.QtWidgets import QTextEdit
-            desc_field = QTextEdit()
-            desc_field.setPlainText(server.description)
-            desc_field.setReadOnly(True)
-            desc_field.setMaximumHeight(80)
-            desc_row.addWidget(desc_field, stretch=1)
-            info_layout.addLayout(desc_row)
+        from PySide6.QtWidgets import QTextEdit
+        desc_field = QTextEdit()
+        desc_field.setPlainText(server.get_field('description', ''))
+        desc_field.setMaximumHeight(80)
+        # Track changes when text is modified
+        desc_field.textChanged.connect(
+            lambda: self._track_server_field_change(server.id, 'description', desc_field.toPlainText())
+        )
+        desc_row.addWidget(desc_field, stretch=1)
+        info_layout.addLayout(desc_row)
 
         info_group.setLayout(info_layout)
         content_layout.addWidget(info_group)
@@ -1469,6 +1475,8 @@ class PreferencesDialog(QDialog):
         Returns:
             Configured page widget
         """
+        from PySide6.QtWidgets import QComboBox
+
         page, content_layout = self._create_page_container(
             server.name,
             f"Configure {server.name} client and downloads"
@@ -1492,35 +1500,53 @@ class PreferencesDialog(QDialog):
         info_group = QGroupBox("Server Information")
         info_layout = QVBoxLayout()
 
-        # Map version_id to readable version name
-        version_name = getattr(server, 'version_id', '').replace('_', ' ').upper()
-        if hasattr(server, 'version_id'):
-            version_id = server.version_id
-            if version_id == 'osrs':
-                version_name = 'Old School RuneScape'
-            elif version_id.isdigit():
-                version_name = f"Revision {version_id}"
+        # Version dropdown (editable)
+        version_row = QHBoxLayout()
+        version_label = QLabel("Version:")
+        version_label.setMinimumWidth(120)
+        version_row.addWidget(version_label)
 
-        add_info_field("Version", version_name, info_layout)
-        add_info_field("Server Type", getattr(server, 'server_type', ''), info_layout)
-        add_info_field("Rates", getattr(server, 'rates', ''), info_layout)
-        add_info_field("Population", getattr(server, 'population', ''), info_layout)
-        add_info_field("Language", getattr(server, 'language', ''), info_layout)
+        version_combo = QComboBox()
+        # Find RuneScape game definition to get available versions
+        runescape_game = next((g for g in self.game_defs if g.id == 'runescape'), None)
+        if runescape_game and hasattr(runescape_game, 'versions'):
+            for version in runescape_game.versions:
+                version_combo.addItem(version.name, version.id)
 
-        if hasattr(server, 'description') and server.description:
-            desc_row = QHBoxLayout()
-            desc_label = QLabel("Description:")
-            desc_label.setMinimumWidth(120)
-            desc_label.setAlignment(Qt.AlignmentFlag.AlignTop)
-            desc_row.addWidget(desc_label)
+            # Set current version
+            current_index = version_combo.findData(server.version_id)
+            if current_index >= 0:
+                version_combo.setCurrentIndex(current_index)
 
-            from PySide6.QtWidgets import QTextEdit
-            desc_field = QTextEdit()
-            desc_field.setPlainText(server.description)
-            desc_field.setReadOnly(True)
-            desc_field.setMaximumHeight(80)
-            desc_row.addWidget(desc_field, stretch=1)
-            info_layout.addLayout(desc_row)
+        # Track version changes
+        version_combo.currentIndexChanged.connect(
+            lambda: self._track_server_field_change(server.id, 'version_id', version_combo.currentData())
+        )
+        version_row.addWidget(version_combo, stretch=1)
+        info_layout.addLayout(version_row)
+
+        add_info_field("Server Type", server.get_field('server_type', ''), info_layout)
+        add_info_field("Rates", server.get_field('rates', ''), info_layout)
+        add_info_field("Population", server.get_field('population', ''), info_layout)
+        add_info_field("Language", server.get_field('language', ''), info_layout)
+
+        # Description (editable)
+        desc_row = QHBoxLayout()
+        desc_label = QLabel("Description:")
+        desc_label.setMinimumWidth(120)
+        desc_label.setAlignment(Qt.AlignmentFlag.AlignTop)
+        desc_row.addWidget(desc_label)
+
+        from PySide6.QtWidgets import QTextEdit
+        desc_field = QTextEdit()
+        desc_field.setPlainText(server.get_field('description', ''))
+        desc_field.setMaximumHeight(80)
+        # Track changes when text is modified
+        desc_field.textChanged.connect(
+            lambda: self._track_server_field_change(server.id, 'description', desc_field.toPlainText())
+        )
+        desc_row.addWidget(desc_field, stretch=1)
+        info_layout.addLayout(desc_row)
 
         info_group.setLayout(info_layout)
         content_layout.addWidget(info_group)
@@ -1529,16 +1555,23 @@ class PreferencesDialog(QDialog):
         links_group = QGroupBox("Server Links")
         links_layout = QVBoxLayout()
 
-        add_info_field("Website", getattr(server, 'website', ''), links_layout)
+        website = server.get_field('website', '')
+        discord = server.get_field('discord', '')
+        register_url = server.get_field('register_url', '')
+        login_url = server.get_field('login_url', '')
 
-        if hasattr(server, 'discord') and server.discord:
-            add_info_field("Discord", f"https://discord.gg/{server.discord}", links_layout)
+        add_info_field("Website", website, links_layout)
 
-        add_info_field("Register URL", getattr(server, 'register_url', ''), links_layout)
-        add_info_field("Login URL", getattr(server, 'login_url', ''), links_layout)
+        if discord:
+            add_info_field("Discord", f"https://discord.gg/{discord}", links_layout)
 
-        links_group.setLayout(links_layout)
-        content_layout.addWidget(links_group)
+        add_info_field("Register URL", register_url, links_layout)
+        add_info_field("Login URL", login_url, links_layout)
+
+        # Only show links section if there's at least one link
+        if website or discord or register_url or login_url:
+            links_group.setLayout(links_layout)
+            content_layout.addWidget(links_group)
 
         # Downloads section
         if server.data.get("downloads"):
@@ -1663,4 +1696,52 @@ class PreferencesDialog(QDialog):
             self.appearance_editor.apply_changes()
         if hasattr(self, "network_editor"):
             self.network_editor.apply_changes()
+
+        # Save server field changes
+        self._save_server_changes()
+
         self.accept()
+
+    def _track_server_field_change(self, server_id: str, field_name: str, new_value: any) -> None:
+        """Track a server field change for later saving.
+
+        Args:
+            server_id: Server ID
+            field_name: Field name to change
+            new_value: New value for the field
+        """
+        if server_id not in self._server_field_changes:
+            self._server_field_changes[server_id] = {}
+        self._server_field_changes[server_id][field_name] = new_value
+
+    def _save_server_changes(self) -> None:
+        """Save all tracked server field changes to YAML files."""
+        import yaml
+
+        for server_id, changes in self._server_field_changes.items():
+            # Find the server to get its game_id
+            server = next((s for s in self.servers if s.id == server_id), None)
+            if not server:
+                continue
+
+            # Construct path to server YAML file
+            server_file = self.app_paths.get_servers_dir() / server.game_id / f"{server_id}.yaml"
+
+            if not server_file.exists():
+                continue
+
+            try:
+                # Load current YAML
+                with open(server_file, 'r', encoding='utf-8') as f:
+                    data = yaml.safe_load(f) or {}
+
+                # Apply changes
+                for field_name, new_value in changes.items():
+                    data[field_name] = new_value
+
+                # Save back to file
+                with open(server_file, 'w', encoding='utf-8') as f:
+                    yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+
+            except Exception as e:
+                print(f"Error saving changes to {server_file}: {e}")
