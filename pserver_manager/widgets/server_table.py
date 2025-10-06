@@ -114,6 +114,9 @@ class ServerTable(VBox):
     server_double_clicked = Signal(str)  # server_id
     edit_server_requested = Signal(str)  # server_id
     delete_server_requested = Signal(str)  # server_id
+    manage_accounts_requested = Signal(str)  # server_id
+    register_requested = Signal(str)  # server_id
+    login_requested = Signal(str)  # server_id
 
     def __init__(self, parent=None) -> None:
         """Initialize the server table."""
@@ -380,12 +383,50 @@ class ServerTable(VBox):
         if not server_id:
             return
 
+        # Find the server to check for URLs
+        server = None
+        for s in self._servers:
+            if s.id == server_id:
+                server = s
+                break
+
+        if not server:
+            return
+
         menu = QMenu(self._table)
-        edit_action = menu.addAction("Edit")
-        delete_action = menu.addAction("Delete")
+
+        # Account management
+        accounts_action = menu.addAction("⚙️ Manage Accounts")
+        menu.addSeparator()
+
+        # Register/Login actions (if URLs are configured)
+        register_action = None
+        login_action = None
+
+        register_url = server.get_field("register_url", "")
+        login_url = server.get_field("login_url", "")
+
+        if register_url:
+            register_action = menu.addAction("📝 Register Account")
+        if login_url:
+            login_action = menu.addAction("🔐 Account Login")
+
+        if register_url or login_url:
+            menu.addSeparator()
+
+        # Edit/Delete
+        edit_action = menu.addAction("✏️ Edit Server")
+        delete_action = menu.addAction("🗑️ Delete Server")
 
         action = menu.exec(self._table.viewport().mapToGlobal(pos))
-        if action == edit_action:
+
+        if action == accounts_action:
+            self.manage_accounts_requested.emit(server_id)
+        elif action == register_action:
+            self.register_requested.emit(server_id)
+        elif action == login_action:
+            self.login_requested.emit(server_id)
+        elif action == edit_action:
             self.edit_server_requested.emit(server_id)
         elif action == delete_action:
             # Show confirmation dialog before deleting

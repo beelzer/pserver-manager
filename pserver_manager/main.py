@@ -174,6 +174,9 @@ class MainWindow(BaseWindow):
         self._server_table.server_double_clicked.connect(self._on_server_double_clicked)
         self._server_table.edit_server_requested.connect(self._on_edit_server)
         self._server_table.delete_server_requested.connect(self._on_delete_server)
+        self._server_table.manage_accounts_requested.connect(self._on_manage_accounts)
+        self._server_table.register_requested.connect(self._on_register)
+        self._server_table.login_requested.connect(self._on_login)
 
         # Create Reddit panel
         self._reddit_panel = RedditPanel()
@@ -601,6 +604,75 @@ class MainWindow(BaseWindow):
                 self._notifications.error("Delete Failed", "Server configuration file not found")
         except Exception as e:
             self._notifications.error("Delete Failed", f"Failed to delete server: {str(e)}")
+
+    def _on_manage_accounts(self, server_id: str) -> None:
+        """Handle manage accounts request.
+
+        Args:
+            server_id: Server ID
+        """
+        # Find the server
+        server = None
+        for s in self._all_servers:
+            if s.id == server_id:
+                server = s
+                break
+
+        if not server:
+            self._notifications.error("Server Not Found", f"Could not find server: {server_id}")
+            return
+
+        from pserver_manager.widgets.account_dialog import AccountDialog
+        dialog = AccountDialog(server, self)
+        dialog.exec()
+
+    def _on_register(self, server_id: str) -> None:
+        """Handle register account request.
+
+        Args:
+            server_id: Server ID
+        """
+        # Find the server
+        server = None
+        for s in self._all_servers:
+            if s.id == server_id:
+                server = s
+                break
+
+        if not server:
+            return
+
+        register_url = server.get_field("register_url", "")
+        if register_url:
+            import webbrowser
+            webbrowser.open(register_url)
+            self._notifications.info("Opening Browser", f"Opening registration page for {server.name}")
+        else:
+            self._notifications.warning("No Registration URL", f"No registration URL configured for {server.name}")
+
+    def _on_login(self, server_id: str) -> None:
+        """Handle login request.
+
+        Args:
+            server_id: Server ID
+        """
+        # Find the server
+        server = None
+        for s in self._all_servers:
+            if s.id == server_id:
+                server = s
+                break
+
+        if not server:
+            return
+
+        login_url = server.get_field("login_url", "")
+        if login_url:
+            import webbrowser
+            webbrowser.open(login_url)
+            self._notifications.info("Opening Browser", f"Opening account login for {server.name}")
+        else:
+            self._notifications.warning("No Login URL", f"No login URL configured for {server.name}")
 
     def _on_add_server(self) -> None:
         """Handle add server button click."""

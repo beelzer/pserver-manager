@@ -163,3 +163,15 @@ server_schema:
   - name: description
     type: string
     default: ""
+
+  - name: register_url
+    type: string
+    required: false
+    default: ""
+    description: "Registration page URL"
+
+  - name: login_url
+    type: string
+    required: false
+    default: ""
+    description: "Account login/management URL"

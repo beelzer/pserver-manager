@@ -161,6 +161,14 @@ class AppPaths:
         """
         return self.get_user_data_dir() / "icons"
 
+    def get_accounts_file(self) -> Path:
+        """Get accounts storage file.
+
+        Returns:
+            Path to accounts.yaml (in app data, encrypted)
+        """
+        return self.get_app_data_dir() / "accounts.yaml"
+
     def ensure_directories(self) -> None:
         """Create all necessary directories if they don't exist."""
         dirs_to_create = [
