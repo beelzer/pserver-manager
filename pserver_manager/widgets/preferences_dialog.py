@@ -46,6 +46,8 @@ class PreferencesDialog(QDialog):
         config_manager: ConfigManager,
         theme_manager,
         app_paths: AppPaths,
+        servers: list = None,
+        game_defs: list = None,
         parent=None,
     ) -> None:
         """Initialize preferences dialog.
@@ -54,12 +56,16 @@ class PreferencesDialog(QDialog):
             config_manager: Application config manager
             theme_manager: Application theme manager
             app_paths: Application paths manager
+            servers: List of server definitions (for accounts page)
+            game_defs: List of game definitions
             parent: Parent widget
         """
         super().__init__(parent)
         self.config_manager = config_manager
         self.theme_manager = theme_manager
         self.app_paths = app_paths
+        self.servers = servers or []
+        self.game_defs = game_defs or []
 
         # Initialize search highlighter
         self.search_highlighter = SearchHighlighter()
