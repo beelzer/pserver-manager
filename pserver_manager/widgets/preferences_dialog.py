@@ -71,6 +71,9 @@ class PreferencesDialog(QDialog):
         self.search_highlighter = SearchHighlighter()
         self.current_search = ""
 
+        # Track page indices dynamically
+        self._next_page_index = 0
+
         self.setWindowTitle("Preferences")
         self.setMinimumSize(900, 650)
 
@@ -188,21 +191,32 @@ class PreferencesDialog(QDialog):
         general_item = QTreeWidgetItem(self.nav_tree, ["General"])
         general_item.setExpanded(True)
 
+        # Store indices for each fixed page
+        self._page_indices = {}
+
         application_item = QTreeWidgetItem(general_item, ["Application"])
         application_item.setToolTip(0, "Application settings, paths, and updates")
-        application_item.setData(0, Qt.ItemDataRole.UserRole, 0)  # Page index
+        self._page_indices['application'] = self._next_page_index
+        application_item.setData(0, Qt.ItemDataRole.UserRole, self._next_page_index)
+        self._next_page_index += 1
 
         appearance_item = QTreeWidgetItem(general_item, ["Appearance"])
         appearance_item.setToolTip(0, "Theme and visual display options")
-        appearance_item.setData(0, Qt.ItemDataRole.UserRole, 1)  # Page index
+        self._page_indices['appearance'] = self._next_page_index
+        appearance_item.setData(0, Qt.ItemDataRole.UserRole, self._next_page_index)
+        self._next_page_index += 1
 
         network_item = QTreeWidgetItem(general_item, ["Network"])
         network_item.setToolTip(0, "Connection and ping settings")
-        network_item.setData(0, Qt.ItemDataRole.UserRole, 2)  # Page index
+        self._page_indices['network'] = self._next_page_index
+        network_item.setData(0, Qt.ItemDataRole.UserRole, self._next_page_index)
+        self._next_page_index += 1
 
         accounts_item = QTreeWidgetItem(general_item, ["Accounts"])
         accounts_item.setToolTip(0, "Manage server accounts and passwords")
-        accounts_item.setData(0, Qt.ItemDataRole.UserRole, 3)  # Page index
+        self._page_indices['accounts'] = self._next_page_index
+        accounts_item.setData(0, Qt.ItemDataRole.UserRole, self._next_page_index)
+        self._next_page_index += 1
 
         # Games category (for future expansion)
         games_item = QTreeWidgetItem(self.nav_tree, ["Games"])
@@ -1232,18 +1246,14 @@ class PreferencesDialog(QDialog):
         # Store server info for page creation
         self.wow_servers = []
 
-        # Add each server as a sub-item
-        page_index = 3  # Start at index 3
+        # Add each server as a sub-item using dynamic page indexing
         for server in sorted(wow_servers, key=lambda s: s.name):
             server_item = QTreeWidgetItem(wow_item, [server.name])
             server_item.setToolTip(0, f"{server.name} client and settings")
-            server_item.setData(0, Qt.ItemDataRole.UserRole, page_index)
+            server_item.setData(0, Qt.ItemDataRole.UserRole, self._next_page_index)
 
-            self.wow_servers.append((server, page_index))
-            page_index += 1
-
-        # Update RuneScape page indices to start after WoW servers
-        self.runescape_start_index = page_index
+            self.wow_servers.append((server, self._next_page_index))
+            self._next_page_index += 1
 
     def _add_runescape_servers(self, games_item: QTreeWidgetItem) -> None:
         """Add RuneScape servers to sidebar dynamically from config.
@@ -1275,16 +1285,14 @@ class PreferencesDialog(QDialog):
         # Store server info for page creation
         self.runescape_servers = []
 
-        # Add each server as a sub-item
-        # Start after WoW servers (or at 4 if no WoW servers)
-        page_index = getattr(self, 'runescape_start_index', 4)
+        # Add each server as a sub-item using dynamic page indexing
         for server in sorted(runescape_servers, key=lambda s: s.name):
             server_item = QTreeWidgetItem(runescape_item, [server.name])
             server_item.setToolTip(0, f"{server.name} client and downloads")
-            server_item.setData(0, Qt.ItemDataRole.UserRole, page_index)
+            server_item.setData(0, Qt.ItemDataRole.UserRole, self._next_page_index)
 
-            self.runescape_servers.append((server, page_index))
-            page_index += 1
+            self.runescape_servers.append((server, self._next_page_index))
+            self._next_page_index += 1
 
     def _create_wow_server_pages(self) -> None:
         """Create pages for each WoW server."""
