@@ -13,6 +13,15 @@ rates: 1x, 2x, 3x
 population: Medium
 language: English
 description: The oldest and most dedicated WoW server Community since 2010.
+updates_url: https://truewow.org/changelog
+updates_use_js: true
+updates_selectors:
+  dropdown: "select[name='logs']"
+  item: "#changelog-panel .panel"
+  title: "select[name='logs'] option:selected"
+  link: ""
+  time: "select[name='logs'] option:selected"
+  preview: "h2.inner"
 downloads:
   - name: Client Download
     url: https://truewow.org/download

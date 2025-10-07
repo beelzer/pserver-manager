@@ -25,6 +25,8 @@ class UpdatesWorker(QObject):
         time_selector: str = "time, .date, .time",
         preview_selector: str = "p",
         limit: int = 10,
+        dropdown_selector: str | None = None,
+        max_dropdown_options: int | None = None,
     ):
         """Initialize worker.
 
@@ -37,6 +39,8 @@ class UpdatesWorker(QObject):
             time_selector: CSS selector for time/date within item
             preview_selector: CSS selector for preview text within item
             limit: Number of updates to fetch
+            dropdown_selector: CSS selector for dropdown (enables dropdown mode)
+            max_dropdown_options: Max number of dropdown options to process
         """
         super().__init__()
         self.url = url
@@ -48,6 +52,8 @@ class UpdatesWorker(QObject):
         self.time_selector = time_selector
         self.preview_selector = preview_selector
         self.limit = limit
+        self.dropdown_selector = dropdown_selector
+        self.max_dropdown_options = max_dropdown_options
         self._cancelled = False
 
     def run(self):
@@ -67,6 +73,8 @@ class UpdatesWorker(QObject):
                     preview_selector=self.preview_selector,
                     limit=self.limit,
                     use_js=self.use_js,
+                    dropdown_selector=self.dropdown_selector,
+                    max_dropdown_options=self.max_dropdown_options,
                 )
 
             if not self._cancelled:
@@ -103,6 +111,7 @@ class UpdatesFetchHelper(QObject):
         use_js: bool = False,
         selectors: dict | None = None,
         limit: int = 10,
+        max_dropdown_options: int | None = None,
     ) -> None:
         """Start fetching updates in background.
 
@@ -112,6 +121,7 @@ class UpdatesFetchHelper(QObject):
             use_js: Whether to use Playwright for JavaScript rendering
             selectors: Dictionary of CSS selectors for scraping
             limit: Number of updates to fetch
+            max_dropdown_options: Max number of dropdown options to process
         """
         # Clean up previous thread
         if self.thread is not None:
@@ -132,6 +142,8 @@ class UpdatesFetchHelper(QObject):
             time_selector=selectors.get("time", "time, .date, .time"),
             preview_selector=selectors.get("preview", "p"),
             limit=limit,
+            dropdown_selector=selectors.get("dropdown"),
+            max_dropdown_options=max_dropdown_options,
         )
         self.thread = QThread()
 

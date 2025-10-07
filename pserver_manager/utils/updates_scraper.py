@@ -53,6 +53,95 @@ class UpdatesScraper:
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": user_agent})
 
+    def fetch_updates_with_dropdown(
+        self,
+        url: str,
+        dropdown_selector: str = "select",
+        item_selector: str = "article",
+        title_selector: str = "h2, h3",
+        link_selector: str = "a",
+        time_selector: str = "time, .date, .time",
+        preview_selector: str = "p",
+        limit: int = 10,
+        wait_time: int = 2000,
+        max_dropdown_options: int | None = None,
+    ) -> list[ServerUpdate]:
+        """Fetch updates from a dropdown/form-based changelog using Playwright.
+
+        Args:
+            url: URL to scrape
+            dropdown_selector: CSS selector for the dropdown/select element
+            item_selector: CSS selector for update items
+            title_selector: CSS selector for title (can select from dropdown option)
+            link_selector: CSS selector for link within item
+            time_selector: CSS selector for time/date (can select from dropdown option)
+            preview_selector: CSS selector for preview text within item
+            limit: Maximum number of updates to return (per dropdown option)
+            wait_time: Time to wait after selecting dropdown option (milliseconds)
+            max_dropdown_options: Maximum number of dropdown options to iterate
+
+        Returns:
+            List of ServerUpdate objects aggregated from all dropdown options
+        """
+        if not PLAYWRIGHT_AVAILABLE:
+            print("Playwright not available. Install with: pip install playwright")
+            return []
+
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+                page.goto(url, wait_until='networkidle', timeout=15000)
+                page.wait_for_timeout(1000)  # Initial wait
+
+                all_updates = []
+
+                # Get all dropdown options
+                options = page.query_selector_all(f"{dropdown_selector} option")
+                print(f"Found {len(options)} dropdown options")
+
+                # Limit number of options if specified
+                if max_dropdown_options:
+                    options = options[:max_dropdown_options]
+
+                for i, option in enumerate(options):
+                    try:
+                        # Get the option value
+                        value = option.get_attribute("value")
+                        if not value:
+                            continue
+
+                        print(f"Processing dropdown option {i+1}/{len(options)}: {value}")
+
+                        # Select the option
+                        page.select_option(dropdown_selector, value)
+
+                        # Wait for content to update
+                        page.wait_for_timeout(wait_time)
+
+                        # Get page content
+                        content = page.content()
+                        soup = BeautifulSoup(content, 'html.parser')
+
+                        # Parse updates from this option's content
+                        updates = self._parse_updates_from_soup(
+                            soup, url, item_selector, title_selector,
+                            link_selector, time_selector, preview_selector, limit
+                        )
+
+                        all_updates.extend(updates)
+
+                    except Exception as e:
+                        print(f"Error processing dropdown option {i}: {e}")
+                        continue
+
+                browser.close()
+                return all_updates
+
+        except Exception as e:
+            print(f"Error fetching updates with dropdown: {e}")
+            return []
+
     def fetch_updates_with_js(
         self,
         url: str,
@@ -185,6 +274,8 @@ class UpdatesScraper:
         preview_selector: str = "p",
         limit: int = 10,
         use_js: bool = False,
+        dropdown_selector: str | None = None,
+        max_dropdown_options: int | None = None,
     ) -> list[ServerUpdate]:
         """Fetch updates from a website.
 
@@ -197,10 +288,20 @@ class UpdatesScraper:
             preview_selector: CSS selector for preview text within item
             limit: Maximum number of updates to return
             use_js: Whether to use Playwright for JavaScript-rendered pages
+            dropdown_selector: CSS selector for dropdown (enables dropdown mode)
+            max_dropdown_options: Max number of dropdown options to process
 
         Returns:
             List of ServerUpdate objects
         """
+        # Dropdown mode requires JavaScript
+        if dropdown_selector:
+            return self.fetch_updates_with_dropdown(
+                url, dropdown_selector, item_selector, title_selector,
+                link_selector, time_selector, preview_selector, limit,
+                max_dropdown_options=max_dropdown_options
+            )
+
         if use_js:
             return self.fetch_updates_with_js(
                 url, item_selector, title_selector, link_selector,
