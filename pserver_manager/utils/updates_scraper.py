@@ -96,27 +96,34 @@ class UpdatesScraper:
 
                 all_updates = []
 
-                # Get all dropdown options
+                # First, extract all dropdown option values (before any navigation)
                 options = page.query_selector_all(f"{dropdown_selector} option")
-                print(f"Found {len(options)} dropdown options")
+                option_values = []
+                for opt in options:
+                    val = opt.get_attribute("value")
+                    if val:
+                        option_values.append(val)
+
+                print(f"Found {len(option_values)} dropdown options")
 
                 # Limit number of options if specified
                 if max_dropdown_options:
-                    options = options[:max_dropdown_options]
+                    option_values = option_values[:max_dropdown_options]
 
-                for i, option in enumerate(options):
+                # Now iterate through values, re-selecting dropdown each time
+                for i, value in enumerate(option_values):
                     try:
-                        # Get the option value
-                        value = option.get_attribute("value")
-                        if not value:
-                            continue
+                        print(f"Processing dropdown option {i+1}/{len(option_values)}: {value}")
 
-                        print(f"Processing dropdown option {i+1}/{len(options)}: {value}")
-
-                        # Select the option
+                        # Select the option by value
                         page.select_option(dropdown_selector, value)
 
-                        # Wait for content to update
+                        # Wait for page to reload/update (form submit causes navigation)
+                        try:
+                            page.wait_for_load_state('networkidle', timeout=10000)
+                        except:
+                            pass  # Continue even if timeout
+
                         page.wait_for_timeout(wait_time)
 
                         # Get page content
