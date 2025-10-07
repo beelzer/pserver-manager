@@ -1,4 +1,4 @@
-"""Reddit panel widget for displaying subreddit information."""
+"""Info panel widget for displaying Reddit and server updates."""
 
 from __future__ import annotations
 
@@ -7,19 +7,19 @@ import re
 
 from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QCursor, QPalette
-from PySide6.QtWidgets import QFrame, QLabel, QProgressBar, QPushButton, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QLabel, QProgressBar, QPushButton, QScrollArea, QTabWidget, QVBoxLayout, QWidget
 
 from qtframework.layouts.card import Card
 from qtframework.widgets import HBox, VBox
 
 
-class RedditPanel(VBox):
-    """Panel for displaying Reddit subreddit information."""
+class InfoPanel(VBox):
+    """Panel for displaying Reddit and server update information in tabs."""
 
     collapsed_changed = Signal(bool)  # Emits True when collapsed, False when expanded
 
     def __init__(self, parent=None):
-        """Initialize Reddit panel.
+        """Initialize info panel.
 
         Args:
             parent: Parent widget
@@ -27,8 +27,10 @@ class RedditPanel(VBox):
         super().__init__(spacing=2, margins=(10, 5, 10, 10), parent=parent)
 
         self._subreddit = ""
+        self._updates_url = ""
         self._is_collapsed = False
         self._current_posts = []  # Store posts for re-rendering on theme change
+        self._current_updates = []  # Store updates for re-rendering on theme change
 
         # Create loading bar (slim, indeterminate progress)
         self._loading_bar = QProgressBar()
@@ -39,37 +41,89 @@ class RedditPanel(VBox):
         self._loading_bar.hide()  # Hidden by default
         self.add_widget(self._loading_bar)
 
-        # Create content container with increased spacing
-        self._content = VBox(spacing=15, margins=(0, 5, 0, 0))
+        # Create tab widget
+        self._tab_widget = QTabWidget()
+        self._tab_widget.setDocumentMode(True)
+
+        # Create Reddit tab
+        self._reddit_tab = self._create_reddit_tab()
+        self._reddit_tab_index = -1  # Track tab index
+
+        # Create Updates tab
+        self._updates_tab = self._create_updates_tab()
+        self._updates_tab_index = -1  # Track tab index
+
+        self.add_widget(self._tab_widget, stretch=1)
+
+        # Set initial minimum and maximum width to constrain panel
+        self.setMinimumWidth(400)
+        self.setMaximumWidth(600)
+
+    def _create_reddit_tab(self) -> QWidget:
+        """Create the Reddit tab content.
+
+        Returns:
+            Reddit tab widget
+        """
+        tab = VBox(spacing=15, margins=(0, 5, 0, 0))
 
         # Subreddit label
         self._subreddit_label = QLabel("r/wowservers")
         self._subreddit_label.setStyleSheet("font-weight: bold; font-size: 14px;")
         self._subreddit_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._content.add_widget(self._subreddit_label)
+        tab.add_widget(self._subreddit_label)
 
         # Scroll area for Reddit cards
-        self._scroll_area = QScrollArea()
-        self._scroll_area.setWidgetResizable(True)
-        self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        self._scroll_area.setMinimumWidth(300)
-        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._reddit_scroll_area = QScrollArea()
+        self._reddit_scroll_area.setWidgetResizable(True)
+        self._reddit_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self._reddit_scroll_area.setMinimumWidth(300)
+        self._reddit_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         # Container widget for cards
-        self._cards_container = QWidget()
-        self._cards_layout = QVBoxLayout(self._cards_container)
-        self._cards_layout.setSpacing(16)
-        self._cards_layout.setContentsMargins(0, 0, 10, 0)  # Add 10px right margin for scrollbar spacing
-        self._cards_layout.addStretch()
+        self._reddit_cards_container = QWidget()
+        self._reddit_cards_layout = QVBoxLayout(self._reddit_cards_container)
+        self._reddit_cards_layout.setSpacing(16)
+        self._reddit_cards_layout.setContentsMargins(0, 0, 10, 0)  # Add 10px right margin for scrollbar spacing
+        self._reddit_cards_layout.addStretch()
 
-        self._scroll_area.setWidget(self._cards_container)
-        self._content.add_widget(self._scroll_area, stretch=1)
+        self._reddit_scroll_area.setWidget(self._reddit_cards_container)
+        tab.add_widget(self._reddit_scroll_area, stretch=1)
 
-        self.add_widget(self._content, stretch=1)
+        return tab
 
-        # Set initial minimum and maximum width to constrain panel
-        self.setMinimumWidth(400)
-        self.setMaximumWidth(600)
+    def _create_updates_tab(self) -> QWidget:
+        """Create the Updates tab content.
+
+        Returns:
+            Updates tab widget
+        """
+        tab = VBox(spacing=15, margins=(0, 5, 0, 0))
+
+        # Updates label
+        self._updates_label = QLabel("Server Updates")
+        self._updates_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        self._updates_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        tab.add_widget(self._updates_label)
+
+        # Scroll area for update cards
+        self._updates_scroll_area = QScrollArea()
+        self._updates_scroll_area.setWidgetResizable(True)
+        self._updates_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self._updates_scroll_area.setMinimumWidth(300)
+        self._updates_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        # Container widget for update cards
+        self._updates_cards_container = QWidget()
+        self._updates_cards_layout = QVBoxLayout(self._updates_cards_container)
+        self._updates_cards_layout.setSpacing(16)
+        self._updates_cards_layout.setContentsMargins(0, 0, 10, 0)
+        self._updates_cards_layout.addStretch()
+
+        self._updates_scroll_area.setWidget(self._updates_cards_container)
+        tab.add_widget(self._updates_scroll_area, stretch=1)
+
+        return tab
 
     def _add_url_breaks(self, match: re.Match) -> str:
         """Add zero-width spaces to URLs to allow breaking.
@@ -110,12 +164,65 @@ class RedditPanel(VBox):
         self._subreddit = subreddit
         if subreddit:
             self._subreddit_label.setText(f"r/{subreddit}")
-            self._clear_cards()
+            self._clear_reddit_cards()
+            self._ensure_reddit_tab_visible()
             self.show_loading()
             self.show()
         else:
-            self.hide()
+            self._remove_reddit_tab()
+            # Hide panel if no tabs are visible
+            if self._tab_widget.count() == 0:
+                self.hide()
             self.hide_loading()
+
+    def set_updates_url(self, updates_url: str) -> None:
+        """Set the updates URL to fetch from.
+
+        Args:
+            updates_url: URL to scrape updates from
+        """
+        self._updates_url = updates_url
+        if updates_url:
+            self._updates_label.setText("Server Updates")
+            self._clear_updates_cards()
+            self._ensure_updates_tab_visible()
+            self.show_loading()
+            self.show()
+        else:
+            self._remove_updates_tab()
+            # Hide panel if no tabs are visible
+            if self._tab_widget.count() == 0:
+                self.hide()
+
+    def _ensure_reddit_tab_visible(self) -> None:
+        """Ensure Reddit tab is visible in the tab widget."""
+        if self._reddit_tab_index == -1:
+            # Tab not added yet, add it
+            self._reddit_tab_index = self._tab_widget.addTab(self._reddit_tab, "Reddit")
+
+    def _remove_reddit_tab(self) -> None:
+        """Remove Reddit tab from the tab widget."""
+        if self._reddit_tab_index != -1:
+            self._tab_widget.removeTab(self._reddit_tab_index)
+            self._reddit_tab_index = -1
+            # Update updates tab index if it was after reddit tab
+            if self._updates_tab_index > 0:
+                self._updates_tab_index -= 1
+
+    def _ensure_updates_tab_visible(self) -> None:
+        """Ensure Updates tab is visible in the tab widget."""
+        if self._updates_tab_index == -1:
+            # Tab not added yet, add it
+            self._updates_tab_index = self._tab_widget.addTab(self._updates_tab, "Updates")
+
+    def _remove_updates_tab(self) -> None:
+        """Remove Updates tab from the tab widget."""
+        if self._updates_tab_index != -1:
+            self._tab_widget.removeTab(self._updates_tab_index)
+            self._updates_tab_index = -1
+            # Update reddit tab index if it was after updates tab
+            if self._reddit_tab_index > 0:
+                self._reddit_tab_index -= 1
 
     def _on_collapse_internal(self) -> None:
         """Handle internal collapse (from close button)."""
@@ -157,17 +264,24 @@ class RedditPanel(VBox):
         Args:
             content: Content to display
         """
-        self._clear_cards()
+        self._clear_reddit_cards()
         # Create a simple label for error messages
         label = QLabel(content)
         label.setWordWrap(True)
-        self._cards_layout.insertWidget(0, label)
+        self._reddit_cards_layout.insertWidget(0, label)
         self.hide_loading()
 
-    def _clear_cards(self) -> None:
-        """Clear all cards from the layout."""
-        while self._cards_layout.count() > 1:  # Keep the stretch
-            item = self._cards_layout.takeAt(0)
+    def _clear_reddit_cards(self) -> None:
+        """Clear all Reddit cards from the layout."""
+        while self._reddit_cards_layout.count() > 1:  # Keep the stretch
+            item = self._reddit_cards_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+    def _clear_updates_cards(self) -> None:
+        """Clear all update cards from the layout."""
+        while self._updates_cards_layout.count() > 1:  # Keep the stretch
+            item = self._updates_cards_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
@@ -184,7 +298,7 @@ class RedditPanel(VBox):
             self.set_content("No posts found.")
             return
 
-        self._clear_cards()
+        self._clear_reddit_cards()
 
         for post in posts:
             # Create card for each post
@@ -343,6 +457,115 @@ class RedditPanel(VBox):
                 """)
                 card.add_widget(preview_label)
 
-            self._cards_layout.insertWidget(self._cards_layout.count() - 1, card)
+            self._reddit_cards_layout.insertWidget(self._reddit_cards_layout.count() - 1, card)
+
+        self.hide_loading()
+
+    def set_updates(self, updates: list) -> None:
+        """Set server updates to display.
+
+        Args:
+            updates: List of server update dictionaries
+        """
+        # Store updates for re-rendering on theme change
+        self._current_updates = updates
+
+        if not updates:
+            self._clear_updates_cards()
+            label = QLabel("No updates found.")
+            label.setWordWrap(True)
+            self._updates_cards_layout.insertWidget(0, label)
+            self.hide_loading()
+            return
+
+        self._clear_updates_cards()
+
+        for update in updates:
+            # Create card for each update
+            card = Card(elevated=True, padding=14)
+            card.setMaximumWidth(580)  # Constrain card to fit within panel (600 - margins)
+
+            # Get theme colors
+            palette = self.palette()
+            text_color = palette.color(QPalette.ColorRole.Text).name()
+            highlight_color = palette.color(QPalette.ColorRole.Highlight).name()
+
+            # Create card background that adapts to theme brightness
+            window_color = palette.color(QPalette.ColorRole.Window)
+            is_dark_theme = window_color.lightness() < 128
+
+            # Adjust card background to provide contrast
+            card_bg_color = palette.color(QPalette.ColorRole.Window)
+            if is_dark_theme:
+                card_bg_color = card_bg_color.lighter(125)
+            else:
+                card_bg_color = card_bg_color.darker(110)
+            card_bg = card_bg_color.name()
+
+            # Create subtle border color
+            border_color = palette.color(QPalette.ColorRole.Mid)
+            border_color.setAlpha(80)
+            border_hex = border_color.name(format=border_color.NameFormat.HexArgb)
+
+            # Apply theme-aware card styling
+            card.setStyleSheet(f"Card {{ background-color: {card_bg}; border: 1px solid {border_hex}; border-radius: 6px; }}")
+
+            # Title
+            title_label = QLabel(f'<a href="{update.get("url", "#")}" style="text-decoration: none; color: {text_color};">{html.escape(update.get("title", "Untitled"))}</a>')
+            title_label.setOpenExternalLinks(True)
+            title_label.setWordWrap(True)
+            title_label.setTextFormat(Qt.TextFormat.RichText)
+            title_label.setStyleSheet("QLabel { font-size: 16px; font-weight: 600; word-wrap: break-word; word-break: break-word; }")
+            title_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            card.add_widget(title_label)
+
+            # Meta information (date/time)
+            time_str = update.get("time", "Unknown time")
+            meta_label = QLabel(f'<span style="opacity: 0.7;">{html.escape(time_str)}</span>')
+            meta_label.setTextFormat(Qt.TextFormat.RichText)
+            meta_label.setWordWrap(True)
+            meta_label.setStyleSheet("QLabel { font-size: 14px; word-wrap: break-word; word-break: break-word; }")
+            card.add_widget(meta_label)
+
+            # Preview if available
+            if update.get("preview"):
+                preview_text = update["preview"][:200].replace('\n', ' ')
+                if len(update["preview"]) > 200:
+                    preview_text += "..."
+
+                # Escape HTML to prevent injection
+                preview_text = html.escape(preview_text)
+
+                # Get theme colors for preview background and border
+                preview_bg_color = palette.color(QPalette.ColorRole.Window)
+                if is_dark_theme:
+                    preview_bg_color = preview_bg_color.lighter(110)
+                else:
+                    preview_bg_color = preview_bg_color.darker(103)
+                preview_bg_color.setAlpha(128)
+                bg_color = preview_bg_color.name(format=preview_bg_color.NameFormat.HexArgb)
+
+                preview_border_color = palette.color(QPalette.ColorRole.Highlight)
+                preview_border_color.setAlpha(80)
+                border_color = preview_border_color.name(format=preview_border_color.NameFormat.HexArgb)
+
+                preview_label = QLabel(preview_text)
+                preview_label.setWordWrap(True)
+                preview_label.setTextFormat(Qt.TextFormat.RichText)
+                preview_label.setOpenExternalLinks(True)
+                preview_label.setStyleSheet(f"""
+                    QLabel {{
+                        font-size: 14px;
+                        padding: 10px;
+                        background-color: {bg_color};
+                        border-left: 2px solid {border_color};
+                        border-radius: 4px;
+                        word-wrap: break-word;
+                        word-break: break-word;
+                    }}
+                """)
+                card.add_widget(preview_label)
+
+            self._updates_cards_layout.insertWidget(self._updates_cards_layout.count() - 1, card)
 
         self.hide_loading()

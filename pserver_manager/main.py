@@ -23,8 +23,9 @@ from pserver_manager.config_loader import ColumnDefinition, ConfigLoader, GameDe
 from pserver_manager.models import Game
 from pserver_manager.utils import ServerUpdateChecker, get_app_paths
 from pserver_manager.utils.qt_reddit_worker import RedditFetchHelper
+from pserver_manager.utils.qt_updates_worker import UpdatesFetchHelper
 from pserver_manager.utils.schema_migrations import migrate_user_servers
-from pserver_manager.widgets import GameSidebar, RedditPanel, ServerTable
+from pserver_manager.widgets import GameSidebar, InfoPanel, ServerTable
 from pserver_manager.widgets.server_editor import ServerEditor
 from pserver_manager.widgets.preferences_dialog import PreferencesDialog
 from pserver_manager.widgets.update_dialog import UpdateDialog
@@ -105,6 +106,16 @@ class MainWindow(BaseWindow):
         self._reddit_helper.finished.connect(self._on_reddit_posts_fetched)
         self._reddit_helper.error.connect(self._on_reddit_error)
 
+        # Initialize Updates fetch helper
+        self._updates_helper = UpdatesFetchHelper()
+        self._updates_helper.finished.connect(self._on_updates_fetched)
+        self._updates_helper.error.connect(self._on_updates_error)
+
+        # Track last fetch time for updates (URL -> timestamp)
+        self._updates_last_fetch: dict[str, float] = {}
+        self._updates_cache: dict[str, list[dict]] = {}  # URL -> cached updates
+        self._updates_cache_hours = 24  # Cache updates for 24 hours
+
         # Check for updates on startup (after window is shown)
         from PySide6.QtCore import QTimer
 
@@ -178,35 +189,35 @@ class MainWindow(BaseWindow):
         self._server_table.register_requested.connect(self._on_register)
         self._server_table.login_requested.connect(self._on_login)
 
-        # Create Reddit panel
-        self._reddit_panel = RedditPanel()
-        self._reddit_panel.hide()  # Hidden by default
-        self._reddit_panel.collapsed_changed.connect(self._on_reddit_panel_collapsed_changed)
+        # Create Info panel (Reddit + Updates tabs)
+        self._info_panel = InfoPanel()
+        self._info_panel.hide()  # Hidden by default
+        self._info_panel.collapsed_changed.connect(self._on_info_panel_collapsed_changed)
 
-        # Create Reddit menubar button (toggles panel visibility)
+        # Create Info menubar button (toggles panel visibility)
         # Must be created before adding to splitter and set as menubar corner widget
-        self._reddit_menubar_button = Button(
-            "▶ Reddit",
+        self._info_menubar_button = Button(
+            "▶ Info",
             size=ButtonSize.COMPACT,
             variant=ButtonVariant.PRIMARY
         )
-        self._reddit_menubar_button.clicked.connect(self._on_reddit_menubar_button_clicked)
-        self._reddit_menubar_button.setToolTip("Show Reddit panel")
+        self._info_menubar_button.clicked.connect(self._on_info_menubar_button_clicked)
+        self._info_menubar_button.setToolTip("Show info panel")
         # Override ONLY size properties to fit menubar, preserve theme colors
-        self._reddit_menubar_button.setStyleSheet("""
+        self._info_menubar_button.setStyleSheet("""
             QPushButton {
                 padding: 2px 8px;
                 min-height: 0px;
                 max-height: 22px;
             }
         """)
-        self._reddit_menubar_button.hide()  # Hidden by default
-        menubar.setCornerWidget(self._reddit_menubar_button, Qt.Corner.TopRightCorner)
+        self._info_menubar_button.hide()  # Hidden by default
+        menubar.setCornerWidget(self._info_menubar_button, Qt.Corner.TopRightCorner)
 
         # Add to splitter
         splitter.addWidget(self._sidebar)
         splitter.addWidget(self._server_table)
-        splitter.addWidget(self._reddit_panel)
+        splitter.addWidget(self._info_panel)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
         splitter.setStretchFactor(2, 1)
@@ -311,6 +322,11 @@ class MainWindow(BaseWindow):
         fetch_info_action.triggered.connect(self._on_fetch_player_counts)
         file_menu.addAction(fetch_info_action)
 
+        refresh_updates_action = QAction("Refresh &Updates", self)
+        refresh_updates_action.setShortcut("Ctrl+U")
+        refresh_updates_action.triggered.connect(self._force_refresh_updates)
+        file_menu.addAction(refresh_updates_action)
+
         file_menu.addSeparator()
 
         exit_action = QAction("E&xit", self)
@@ -378,10 +394,10 @@ class MainWindow(BaseWindow):
     def _on_all_servers_selected(self) -> None:
         """Handle all servers selection."""
         self._show_all_servers()
-        # Hide Reddit panel and menubar button when showing all servers
-        self._reddit_panel.hide()
-        self._reddit_menubar_button.hide()
-        self._reddit_panel._is_collapsed = False
+        # Hide Info panel and menubar button when showing all servers
+        self._info_panel.hide()
+        self._info_menubar_button.hide()
+        self._info_panel._is_collapsed = False
 
     def _on_game_selected(self, game_id: str) -> None:
         """Handle game selection.
@@ -402,20 +418,40 @@ class MainWindow(BaseWindow):
         # Filter servers for this game
         self._server_table.filter_by_game(self._all_servers, game_id)
 
-        # Show/hide Reddit panel based on whether game has Reddit defined
-        if game_def.reddit:
-            self._reddit_panel.set_subreddit(game_def.reddit)
-            # Fetch Reddit posts
-            self._reddit_helper.start_fetching(game_def.reddit, limit=15, sort="hot")
+        # Show/hide Info panel based on whether game has Reddit or updates defined
+        has_reddit = bool(game_def.reddit)
+        has_updates = bool(game_def.updates_url)
+
+        if has_reddit or has_updates:
+            if has_reddit:
+                self._info_panel.set_subreddit(game_def.reddit)
+                # Fetch Reddit posts
+                self._reddit_helper.start_fetching(game_def.reddit, limit=15, sort="hot")
+            else:
+                self._info_panel.set_subreddit("")
+
+            if has_updates:
+                self._info_panel.set_updates_url(game_def.updates_url)
+                # Fetch updates (with 24-hour cache)
+                self._fetch_updates(
+                    url=game_def.updates_url,
+                    is_rss=game_def.updates_is_rss,
+                    use_js=game_def.updates_use_js,
+                    selectors=game_def.updates_selectors,
+                    limit=10,
+                )
+            else:
+                self._info_panel.set_updates_url("")
+
             # Show menubar button and expand panel
-            self._reddit_menubar_button.show()
-            if self._reddit_panel.is_collapsed():
-                self._reddit_panel.expand()
+            self._info_menubar_button.show()
+            if self._info_panel.is_collapsed():
+                self._info_panel.expand()
         else:
-            # Hide panel and menubar button when no Reddit available
-            self._reddit_panel.hide()
-            self._reddit_menubar_button.hide()
-            self._reddit_panel._is_collapsed = False
+            # Hide panel and menubar button when no Reddit or updates available
+            self._info_panel.hide()
+            self._info_menubar_button.hide()
+            self._info_panel._is_collapsed = False
 
     def _on_version_selected(self, game_id: str, version_id: str) -> None:
         """Handle version selection.
@@ -437,20 +473,40 @@ class MainWindow(BaseWindow):
         # Filter servers for this game and version
         self._server_table.filter_by_game(self._all_servers, game_id, version_id)
 
-        # Show/hide Reddit panel based on whether game has Reddit defined
-        if game_def.reddit:
-            self._reddit_panel.set_subreddit(game_def.reddit)
-            # Fetch Reddit posts
-            self._reddit_helper.start_fetching(game_def.reddit, limit=15, sort="hot")
+        # Show/hide Info panel based on whether game has Reddit or updates defined
+        has_reddit = bool(game_def.reddit)
+        has_updates = bool(game_def.updates_url)
+
+        if has_reddit or has_updates:
+            if has_reddit:
+                self._info_panel.set_subreddit(game_def.reddit)
+                # Fetch Reddit posts
+                self._reddit_helper.start_fetching(game_def.reddit, limit=15, sort="hot")
+            else:
+                self._info_panel.set_subreddit("")
+
+            if has_updates:
+                self._info_panel.set_updates_url(game_def.updates_url)
+                # Fetch updates (with 24-hour cache)
+                self._fetch_updates(
+                    url=game_def.updates_url,
+                    is_rss=game_def.updates_is_rss,
+                    use_js=game_def.updates_use_js,
+                    selectors=game_def.updates_selectors,
+                    limit=10,
+                )
+            else:
+                self._info_panel.set_updates_url("")
+
             # Show menubar button and expand panel
-            self._reddit_menubar_button.show()
-            if self._reddit_panel.is_collapsed():
-                self._reddit_panel.expand()
+            self._info_menubar_button.show()
+            if self._info_panel.is_collapsed():
+                self._info_panel.expand()
         else:
-            # Hide panel and menubar button when no Reddit available
-            self._reddit_panel.hide()
-            self._reddit_menubar_button.hide()
-            self._reddit_panel._is_collapsed = False
+            # Hide panel and menubar button when no Reddit or updates available
+            self._info_panel.hide()
+            self._info_menubar_button.hide()
+            self._info_panel._is_collapsed = False
 
     def _on_reddit_posts_fetched(self, posts: list) -> None:
         """Handle Reddit posts being fetched.
@@ -458,7 +514,7 @@ class MainWindow(BaseWindow):
         Args:
             posts: List of RedditPost objects
         """
-        self._reddit_panel.set_posts(posts)
+        self._info_panel.set_posts(posts)
 
     def _on_reddit_error(self, error: str) -> None:
         """Handle Reddit fetch error.
@@ -466,29 +522,124 @@ class MainWindow(BaseWindow):
         Args:
             error: Error message
         """
-        self._reddit_panel.set_content(f"Error loading Reddit posts:\n{error}")
+        self._info_panel.set_content(f"Error loading Reddit posts:\n{error}")
 
-    def _on_reddit_panel_collapsed_changed(self, is_collapsed: bool) -> None:
-        """Handle Reddit panel collapsed state change.
+    def _on_updates_fetched(self, updates: list) -> None:
+        """Handle server updates being fetched.
+
+        Args:
+            updates: List of update dictionaries
+        """
+        # Cache the updates by URL
+        if self._info_panel._updates_url:
+            self._updates_cache[self._info_panel._updates_url] = updates
+
+        self._info_panel.set_updates(updates)
+
+    def _on_updates_error(self, error: str) -> None:
+        """Handle updates fetch error.
+
+        Args:
+            error: Error message
+        """
+        # Display error in updates tab
+        self._info_panel._clear_updates_cards()
+        from PySide6.QtWidgets import QLabel
+        label = QLabel(f"Error loading updates:\n{error}")
+        label.setWordWrap(True)
+        self._info_panel._updates_cards_layout.insertWidget(0, label)
+        self._info_panel.hide_loading()
+
+    def _should_fetch_updates(self, url: str) -> bool:
+        """Check if we should fetch updates based on cache time.
+
+        Args:
+            url: Updates URL
+
+        Returns:
+            True if we should fetch (cache expired or no cache), False otherwise
+        """
+        import time
+
+        if url not in self._updates_last_fetch:
+            return True
+
+        last_fetch = self._updates_last_fetch[url]
+        elapsed_hours = (time.time() - last_fetch) / 3600
+
+        return elapsed_hours >= self._updates_cache_hours
+
+    def _fetch_updates(self, url: str, is_rss: bool, use_js: bool, selectors: dict, limit: int = 10, force: bool = False) -> None:
+        """Fetch updates with cache checking.
+
+        Args:
+            url: Updates URL
+            is_rss: Whether URL is RSS feed
+            use_js: Whether to use JavaScript rendering
+            selectors: CSS selectors dict
+            limit: Number of updates to fetch
+            force: If True, bypass cache and force fetch
+        """
+        import time
+
+        # Check cache unless force refresh
+        if not force and not self._should_fetch_updates(url):
+            # Updates are cached, display cached data
+            if url in self._updates_cache:
+                self._info_panel.set_updates(self._updates_cache[url])
+            return
+
+        # Fetch updates
+        self._updates_helper.start_fetching(
+            url=url,
+            is_rss=is_rss,
+            use_js=use_js,
+            selectors=selectors,
+            limit=limit,
+        )
+
+        # Update last fetch time
+        self._updates_last_fetch[url] = time.time()
+
+    def _force_refresh_updates(self) -> None:
+        """Force refresh current updates (bypass cache)."""
+        # Check what's currently selected
+        if self._current_game:
+            if self._current_game.updates_url:
+                self._info_panel.show_loading()
+                self._fetch_updates(
+                    url=self._current_game.updates_url,
+                    is_rss=self._current_game.updates_is_rss,
+                    use_js=self._current_game.updates_use_js,
+                    selectors=self._current_game.updates_selectors,
+                    limit=10,
+                    force=True,
+                )
+                self._notifications.info("Refreshing", "Fetching latest updates...")
+        else:
+            self._notifications.warning("No Updates", "No updates source available for current selection")
+
+    def _on_info_panel_collapsed_changed(self, is_collapsed: bool) -> None:
+        """Handle Info panel collapsed state change.
 
         Args:
             is_collapsed: True if panel is now collapsed, False if expanded
         """
         if is_collapsed:
             # Panel collapsed - change button to expand arrow
-            self._reddit_menubar_button.setText("▶ Reddit")
-            self._reddit_menubar_button.setToolTip("Show Reddit panel")
+            self._info_menubar_button.setText("▶ Info")
+            self._info_menubar_button.setToolTip("Show info panel")
         else:
             # Panel expanded - change button to collapse arrow
-            self._reddit_menubar_button.setText("◀ Reddit")
-            self._reddit_menubar_button.setToolTip("Hide Reddit panel")
+            self._info_menubar_button.setText("◀ Info")
+            self._info_menubar_button.setToolTip("Hide info panel")
 
-    def _on_reddit_menubar_button_clicked(self) -> None:
-        """Handle Reddit menubar button click (toggle panel)."""
-        if self._reddit_panel.is_collapsed():
-            self._reddit_panel.expand()
+    def _on_info_menubar_button_clicked(self) -> None:
+        """Handle Info menubar button click (toggle panel)."""
+        if self._info_panel.is_collapsed():
+            self._info_panel.expand()
         else:
-            self._reddit_panel.collapse()
+            self._info_panel.collapse()
 
     def _on_server_selected(self, server_id: str) -> None:
         """Handle server selection.
@@ -506,19 +657,39 @@ class MainWindow(BaseWindow):
         if not server:
             return
 
-        # Show/hide Reddit panel based on whether server has Reddit defined
-        if server.reddit:
-            self._reddit_panel.set_subreddit(server.reddit)
-            # Fetch Reddit posts
-            self._reddit_helper.start_fetching(server.reddit, limit=15, sort="hot")
+        # Show/hide Info panel based on whether server has Reddit or updates defined
+        has_reddit = bool(server.reddit)
+        has_updates = bool(server.updates_url)
+
+        if has_reddit or has_updates:
+            if has_reddit:
+                self._info_panel.set_subreddit(server.reddit)
+                # Fetch Reddit posts
+                self._reddit_helper.start_fetching(server.reddit, limit=15, sort="hot")
+            else:
+                self._info_panel.set_subreddit("")
+
+            if has_updates:
+                self._info_panel.set_updates_url(server.updates_url)
+                # Fetch updates (with 24-hour cache)
+                self._fetch_updates(
+                    url=server.updates_url,
+                    is_rss=server.updates_is_rss,
+                    use_js=server.updates_use_js,
+                    selectors=server.updates_selectors,
+                    limit=10,
+                )
+            else:
+                self._info_panel.set_updates_url("")
+
             # Show menubar button and expand panel
-            self._reddit_menubar_button.show()
-            if self._reddit_panel.is_collapsed():
-                self._reddit_panel.expand()
+            self._info_menubar_button.show()
+            if self._info_panel.is_collapsed():
+                self._info_panel.expand()
         else:
-            # No Reddit for this server - hide panel
-            self._reddit_menubar_button.hide()
-            self._reddit_panel.collapse()
+            # No Reddit or updates for this server - hide panel
+            self._info_menubar_button.hide()
+            self._info_panel.collapse()
 
     def _on_server_double_clicked(self, server_id: str) -> None:
         """Handle server double click.

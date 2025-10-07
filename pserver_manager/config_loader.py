@@ -39,6 +39,10 @@ class GameDefinition:
         self.name: str = data["name"]
         self.icon: str = data.get("icon", "")
         self.reddit: str = data.get("reddit", "")
+        self.updates_url: str = data.get("updates_url", "")
+        self.updates_is_rss: bool = data.get("updates_is_rss", False)
+        self.updates_use_js: bool = data.get("updates_use_js", False)
+        self.updates_selectors: dict[str, str] = data.get("updates_selectors", {})
         self.versions: list[GameVersion] = [
             GameVersion(
                 id=v["id"],
@@ -100,6 +104,10 @@ class ServerDefinition:
         self.description: str = data.get("description", "")
         self.icon: str = data.get("icon", "")
         self.reddit: str = data.get("reddit", "")
+        self.updates_url: str = data.get("updates_url", "")
+        self.updates_is_rss: bool = data.get("updates_is_rss", False)
+        self.updates_use_js: bool = data.get("updates_use_js", False)
+        self.updates_selectors: dict[str, str] = data.get("updates_selectors", {})
         self.ping_ms: int = -1  # -1 means not pinged yet
 
     def to_server(self) -> Server:
