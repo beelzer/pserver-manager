@@ -2,7 +2,7 @@ id: true-wow
 name: TrueWoW
 website: https://truewow.org/
 discord: GqPJkbz
-github: ''
+repository: []
 host: login.truewow.org
 version_id: wotlk
 status: online

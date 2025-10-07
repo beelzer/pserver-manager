@@ -126,6 +126,12 @@ server_schema:
     default: ""
     description: "Subreddit name"
 
+  - name: repository
+    type: list
+    required: false
+    default: []
+    description: "List of repositories with type (github/gitlab/bitbucket/gitea) and identifier (e.g., 'owner/repo')"
+
   - name: host
     type: string
     required: false
@@ -181,3 +187,9 @@ server_schema:
     required: false
     default: []
     description: "List of client downloads with name and url"
+
+  - name: runelite
+    type: boolean
+    required: false
+    default: false
+    description: "Whether the server uses RuneLite client"

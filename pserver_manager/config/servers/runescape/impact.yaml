@@ -1,0 +1,29 @@
+id: impact
+name: Impact
+website: https://impact.gg/
+discord: zkfc9QjFJv
+reddit: ""
+repository: []
+host: ""
+version_id: osrs
+status: online
+icon: servers/runescape/impact.png
+runelite: false
+server_type: PvM
+rates: Custom
+population: High
+language: English
+description: The Ultimate Adventure - Unleash your power, explore the unknown, and write your legend. Features 45+ bosses, raids (CoX, ToB, ToA), and flexible account progression.
+register_url: https://impact.gg/
+downloads:
+  - name: Windows Client
+    url: https://impact.gg/download/
+  - name: macOS Client
+    url: https://impact.gg/download/
+  - name: Linux Client
+    url: https://impact.gg/download/
+_metadata:
+  source: bundled
+  app_version: 1.0.0
+  content_hash: ""
+  last_updated: ''

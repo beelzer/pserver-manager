@@ -3,11 +3,12 @@ name: RuneRebels
 website: https://www.runerebels.com/
 discord: XXptEk5
 reddit: runerebels
-github: ''
+repository: []
 host: "world1.runerebels.com:43594"
 version_id: "317"
 status: online
 icon: servers/runescape/runerebels.png
+runelite: false
 server_type: Economy
 rates: 1x
 population: Low

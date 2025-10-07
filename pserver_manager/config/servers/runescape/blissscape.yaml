@@ -2,11 +2,12 @@ id: blissscape
 name: Blissscape
 website: https://blissscape.com/
 discord: GEgw2wFq
-github: ''
+repository: []
 host: "148.113.163.122:43594"
 version_id: "718"
 status: online
 icon: servers/runescape/blissscape.png
+runelite: false
 server_type: Economy
 rates: Custom
 population: Low

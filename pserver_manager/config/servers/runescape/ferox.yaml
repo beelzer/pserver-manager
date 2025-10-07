@@ -1,0 +1,28 @@
+id: ferox
+name: Ferox
+website: https://ferox.ps/
+discord: FxtsYB3Bab
+reddit: ""
+repository: []
+host: "148.113.215.123:43594"
+version_id: osrs
+status: online
+icon: servers/runescape/ferox.png
+runelite: true
+server_type: PvP
+rates: Custom
+population: High
+language: English
+description: A popular Old School RuneScape PvP server
+downloads:
+  - name: Windows (64-bit)
+    url: https://ferox.ps/download
+  - name: macOS
+    url: https://ferox.ps/download
+  - name: Linux
+    url: https://ferox.ps/download
+_metadata:
+  source: bundled
+  app_version: 1.0.0
+  content_hash: ""
+  last_updated: ''

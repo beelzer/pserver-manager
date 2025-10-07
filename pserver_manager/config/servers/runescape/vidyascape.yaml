@@ -1,0 +1,28 @@
+id: vidyascape
+name: Vidyascape
+website: https://vidyascape.org/
+discord: ""
+reddit: ""
+repository: []
+host: ""
+version_id: "osrs"
+status: online
+icon: servers/runescape/vidyascape.jpg
+runelite: false
+server_type: Custom
+rates: Custom
+population: Medium
+language: English
+description: A RuneScape private server with custom content
+downloads:
+  - name: Windows Client
+    url: https://vidyascape.org/downloads
+  - name: macOS Client
+    url: https://vidyascape.org/downloads
+  - name: Linux Client
+    url: https://vidyascape.org/downloads
+_metadata:
+  source: bundled
+  app_version: 1.0.0
+  content_hash: ""
+  last_updated: ''

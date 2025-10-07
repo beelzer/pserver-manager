@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt, QThread, Signal, QSize
 from PySide6.QtGui import QIcon, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -264,36 +264,83 @@ class ServerTable(VBox):
         """
         import webbrowser
         from PySide6.QtWidgets import QWidget, QHBoxLayout, QPushButton
+        from pserver_manager.utils.svg_icon_loader import get_svg_loader
 
         widget = QWidget()
+        widget.setStyleSheet("QWidget { background: transparent; }")
         layout = QHBoxLayout(widget)
         layout.setContentsMargins(4, 2, 4, 2)
         layout.setSpacing(4)
+        layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
-        # Define link types and their icons (using Unicode/emoji for theme compatibility)
+        # Get SVG icon loader
+        svg_loader = get_svg_loader()
+        brands_dir = Path(__file__).parent.parent / "assets" / "brands"
+
+        # Define link types and their icons
         links = [
-            ("🌐", server.get_field('website', ''), "Visit website"),
-            ("💬", f"https://discord.gg/{server.get_field('discord', '')}" if server.get_field('discord', '') else None, "Join Discord"),
-            ("📱", f"https://reddit.com/r/{server.get_field('reddit', '')}" if server.get_field('reddit', '') else None, "Visit Reddit"),
-            ("📝", server.get_field('register_url', ''), "Register account"),
-            ("🔑", server.get_field('login_url', ''), "Login/manage account"),
+            ("🌐", None, server.get_field('website', ''), "Visit website"),
+            (None, "discord.svg", f"https://discord.gg/{server.get_field('discord', '')}" if server.get_field('discord', '') else None, "Join Discord"),
+            (None, "reddit.svg", f"https://reddit.com/r/{server.get_field('reddit', '')}" if server.get_field('reddit', '') else None, "Visit Reddit"),
         ]
 
-        for icon, url, tooltip in links:
+        # Add repository links (support multiple repositories)
+        repositories = server.get_field('repository', [])
+        if isinstance(repositories, list):
+            repo_type_map = {
+                'github': ('github.svg', 'https://github.com/{}', 'View on GitHub'),
+                'gitlab': ('gitlab.svg', 'https://gitlab.com/{}', 'View on GitLab'),
+                'bitbucket': ('bitbucket.svg', 'https://bitbucket.org/{}', 'View on Bitbucket'),
+                'gitea': ('gitea.svg', 'https://gitea.com/{}', 'View on Gitea'),
+            }
+            for repo in repositories:
+                if isinstance(repo, dict):
+                    repo_type = repo.get('type', '').lower()
+                    repo_id = repo.get('id', '')
+                    if repo_type in repo_type_map and repo_id:
+                        svg_file, url_template, tooltip = repo_type_map[repo_type]
+                        links.append((None, svg_file, url_template.format(repo_id), tooltip))
+
+        links.extend([
+            ("📝", None, server.get_field('register_url', ''), "Register account"),
+            ("🔑", None, server.get_field('login_url', ''), "Login/manage account"),
+        ])
+
+        for emoji, svg_file, url, tooltip in links:
             if url:
-                btn = QPushButton(icon)
+                btn = QPushButton()
+
+                # Use SVG icon if available, otherwise use emoji
+                if svg_file:
+                    svg_path = brands_dir / svg_file
+                    if svg_path.exists():
+                        # Load icon without recoloring to preserve brand colors
+                        from PySide6.QtGui import QPixmap
+                        pixmap = QPixmap(str(svg_path))
+                        # Scale to 16x16 if needed
+                        if pixmap.width() != 16 or pixmap.height() != 16:
+                            pixmap = pixmap.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                        icon = QIcon(pixmap)
+                        btn.setIcon(icon)
+                        btn.setIconSize(QSize(16, 16))
+                    else:
+                        btn.setText(emoji if emoji else "")
+                else:
+                    btn.setText(emoji)
+
                 btn.setToolTip(tooltip)
-                btn.setFixedSize(24, 24)
                 btn.setStyleSheet("""
                     QPushButton {
                         border: none;
                         background: transparent;
                         font-size: 14px;
                         padding: 0px;
+                        margin: 0px;
+                        min-height: 0px;
+                        max-height: 20px;
                     }
                     QPushButton:hover {
-                        background: rgba(128, 128, 128, 0.2);
-                        border-radius: 3px;
+                        background: transparent;
                     }
                 """)
                 btn.setCursor(Qt.CursorShape.PointingHandCursor)

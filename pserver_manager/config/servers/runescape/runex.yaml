@@ -2,11 +2,12 @@ id: runex
 name: RuneX
 website: https://rxps.io/
 discord: x3m4Dxh
-github: ''
+repository: []
 host: "51.222.10.23:43594"
 version_id: osrs
 status: online
 icon: servers/runescape/runex.png
+runelite: true
 server_type: Custom
 rates: Custom
 population: Unknown

@@ -1,0 +1,30 @@
+id: battlescape
+name: BattleScape
+website: https://www.battlescape.io/
+discord: 6N3rS9T
+reddit: ""
+repository: []
+host: ""
+version_id: osrs
+status: online
+icon: servers/runescape/battlescape.png
+runelite: true
+server_type: PvP
+rates: Custom
+population: High
+language: English
+description: An Old School RuneScape PvP server
+login_url: https://www.battlescape.io/login
+register_url: https://www.battlescape.io/register
+downloads:
+  - name: Windows Client
+    url: https://www.battlescape.io/download
+  - name: macOS Client
+    url: https://www.battlescape.io/download
+  - name: Linux Client
+    url: https://www.battlescape.io/download
+_metadata:
+  source: bundled
+  app_version: 1.0.0
+  content_hash: ""
+  last_updated: ''

@@ -2,11 +2,12 @@ id: grinderscape
 name: Grinderscape
 website: https://www.grinderscape.org/
 discord: ""
-github: ''
-host: ""
+repository: []
+host: "145.239.205.160:5555"
 version_id: osrs
 status: online
 icon: servers/runescape/grinderscape.png
+runelite: true
 server_type: Economy
 rates: Custom
 population: Medium

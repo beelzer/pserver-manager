@@ -110,6 +110,12 @@ server_schema:
     default: ""
     description: "Subreddit name (e.g., 'KronosWoW')"
 
+  - name: repository
+    type: list
+    required: false
+    default: []
+    description: "List of repositories with type (github/gitlab/bitbucket/gitea) and identifier (e.g., 'owner/repo')"
+
   - name: host
     type: string
     required: false
