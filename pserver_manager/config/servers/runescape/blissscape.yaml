@@ -2,8 +2,8 @@ id: blissscape
 name: Blissscape
 website: https://blissscape.com/
 discord: GEgw2wFq
-host: ""
-version_id: osrs
+host: "148.113.163.122:43594"
+version_id: 718
 status: online
 icon: servers/runescape/blissscape.png
 server_type: Economy

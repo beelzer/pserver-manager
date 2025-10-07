@@ -43,6 +43,7 @@ Thumbs.db
 # App specific
 config.local.yaml
 *.log
+test-files/
 
 # Claude Code
 .claude/settings.local.json
