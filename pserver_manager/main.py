@@ -209,6 +209,7 @@ class MainWindow(BaseWindow):
                 padding: 2px 8px;
                 min-height: 0px;
                 max-height: 22px;
+                margin-right: 5px;
             }
         """)
         self._info_menubar_button.hide()  # Hidden by default
