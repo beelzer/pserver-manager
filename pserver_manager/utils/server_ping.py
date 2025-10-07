@@ -13,25 +13,26 @@ if TYPE_CHECKING:
     from pserver_manager.config_loader import ServerDefinition
 
 
-async def ping_server(server: ServerDefinition, timeout: float = 3.0) -> tuple[ServerStatus, int]:
-    """Ping a WoW server to check if it's online and measure latency.
+async def ping_host(host_string: str, timeout: float = 3.0, default_port: int = 3724) -> tuple[ServerStatus, int]:
+    """Ping a host to check if it's online and measure latency.
 
     Args:
-        server: Server definition to ping
+        host_string: Host string in format "host:port" or just "host"
         timeout: Timeout in seconds
+        default_port: Default port if not specified in host_string
 
     Returns:
         Tuple of (ServerStatus, latency_ms) - latency is -1 if offline
     """
-    if not server.host:
+    if not host_string:
         return ServerStatus.OFFLINE, -1
 
     # Extract host and port
-    host = server.host
-    port = 3724  # Default WoW auth server port
+    host = host_string
+    port = default_port
 
-    if ":" in host:
-        parts = host.rsplit(":", 1)
+    if ":" in host_string:
+        parts = host_string.rsplit(":", 1)
         host = parts[0]
         try:
             port = int(parts[1])
@@ -54,6 +55,41 @@ async def ping_server(server: ServerDefinition, timeout: float = 3.0) -> tuple[S
         return ServerStatus.ONLINE, latency_ms
     except (asyncio.TimeoutError, OSError, ConnectionRefusedError):
         return ServerStatus.OFFLINE, -1
+
+
+async def ping_server(server: ServerDefinition, timeout: float = 3.0) -> tuple[ServerStatus, int]:
+    """Ping a WoW server to check if it's online and measure latency.
+
+    Args:
+        server: Server definition to ping
+        timeout: Timeout in seconds
+
+    Returns:
+        Tuple of (ServerStatus, latency_ms) - latency is -1 if offline
+    """
+    if not server.host:
+        return ServerStatus.OFFLINE, -1
+
+    return await ping_host(server.host, timeout)
+
+
+async def ping_multiple_hosts(
+    hosts: list[str], timeout: float = 3.0, default_port: int = 3724
+) -> dict[str, tuple[ServerStatus, int]]:
+    """Ping multiple hosts concurrently.
+
+    Args:
+        hosts: List of host strings to ping
+        timeout: Timeout in seconds
+        default_port: Default port if not specified in host string
+
+    Returns:
+        Dictionary mapping host strings to (ServerStatus, latency_ms) tuples
+    """
+    tasks = [ping_host(host, timeout, default_port) for host in hosts]
+    results = await asyncio.gather(*tasks)
+
+    return {host: result for host, result in zip(hosts, results)}
 
 
 async def ping_multiple_servers(
@@ -91,6 +127,30 @@ def ping_server_sync(server: ServerDefinition, timeout: float = 3.0) -> tuple[Se
         loop = asyncio.new_event_loop()
         try:
             return loop.run_until_complete(ping_server(server, timeout))
+        finally:
+            loop.close()
+
+
+def ping_multiple_hosts_sync(
+    hosts: list[str], timeout: float = 3.0, default_port: int = 3724
+) -> dict[str, tuple[ServerStatus, int]]:
+    """Synchronous wrapper for pinging multiple hosts.
+
+    Args:
+        hosts: List of host strings to ping
+        timeout: Timeout in seconds
+        default_port: Default port if not specified
+
+    Returns:
+        Dictionary mapping host strings to (status, latency_ms) tuples
+    """
+    try:
+        return asyncio.run(ping_multiple_hosts(hosts, timeout, default_port))
+    except RuntimeError:
+        # If event loop is already running, create a new one
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(ping_multiple_hosts(hosts, timeout, default_port))
         finally:
             loop.close()
 

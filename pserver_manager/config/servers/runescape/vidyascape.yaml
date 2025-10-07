@@ -5,6 +5,16 @@ discord: ""
 reddit: ""
 repository: []
 host: ""
+worlds:
+  - name: "World 1"
+    location: "US (East)"
+    host: "50.116.63.13:43594"
+  - name: "World 2"
+    location: "Sweden (Stockholm)"
+    host: "172.234.117.22:43594"
+  - name: "World 3"
+    location: "Australia (Sydney)"
+    host: "172.105.188.37:43594"
 version_id: "osrs"
 status: online
 icon: servers/runescape/vidyascape.jpg

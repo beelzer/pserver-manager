@@ -12,39 +12,55 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
     QMenu,
-    QTableWidget,
-    QTableWidgetItem,
+    QTreeWidget,
+    QTreeWidgetItem,
     QStyledItemDelegate,
+    QWidget,
 )
 
 
-class NumericTableWidgetItem(QTableWidgetItem):
-    """Table widget item that sorts numerically when numeric data is available."""
+class NumericTreeWidgetItem(QTreeWidgetItem):
+    """Tree widget item that sorts numerically when numeric data is available."""
 
     def __lt__(self, other):
         """Compare items for sorting.
 
         Uses numeric data (UserRole + 1) if available, otherwise falls back to text comparison.
         """
-        # Try to get numeric sort data
-        self_data = self.data(Qt.ItemDataRole.UserRole + 1)
-        other_data = other.data(Qt.ItemDataRole.UserRole + 1)
+        # Safety check: ensure we have a tree widget
+        tree = self.treeWidget()
+        if not tree:
+            return super().__lt__(other)
 
-        # If both have numeric data, compare numerically
-        if self_data is not None and other_data is not None:
-            try:
+        column = tree.sortColumn()
+        if column < 0:
+            column = 0
+
+        # Try to get numeric sort data
+        try:
+            self_data = self.data(column, Qt.ItemDataRole.UserRole + 1)
+            other_data = other.data(column, Qt.ItemDataRole.UserRole + 1)
+
+            # If both have numeric data, compare numerically
+            if self_data is not None and other_data is not None:
                 return float(self_data) < float(other_data)
-            except (ValueError, TypeError):
-                pass
+        except (ValueError, TypeError, RuntimeError):
+            # Catch any Qt-related runtime errors
+            pass
 
         # Fall back to text comparison
-        return super().__lt__(other)
+        try:
+            self_text = self.text(column)
+            other_text = other.text(column)
+            return self_text < other_text
+        except (RuntimeError, AttributeError):
+            return False
 
 from qtframework.widgets import VBox
 from qtframework.widgets.badge import Badge, BadgeVariant
 from qtframework.widgets.advanced import ConfirmDialog
 from pserver_manager.models import ServerStatus
-from pserver_manager.utils import ping_multiple_servers_sync, scrape_servers_sync
+from pserver_manager.utils import ping_multiple_servers_sync, ping_multiple_hosts_sync, scrape_servers_sync
 from pserver_manager.utils.paths import get_app_paths
 
 
@@ -74,12 +90,13 @@ class ColoredTextDelegate(QStyledItemDelegate):
             opt.text = ""
 
             # Draw background only (selection, hover, alternating colors, etc.)
-            opt.widget.style().drawControl(
-                opt.widget.style().ControlElement.CE_ItemViewItem,
-                opt,
-                painter,
-                opt.widget
-            )
+            if opt.widget:
+                opt.widget.style().drawControl(
+                    opt.widget.style().ControlElement.CE_ItemViewItem,
+                    opt,
+                    painter,
+                    opt.widget
+                )
 
             # Now draw text with custom color
             if hasattr(color_data, 'color'):
@@ -128,16 +145,19 @@ class ServerTable(VBox):
 
     def _setup_ui(self) -> None:
         """Set up the user interface."""
-        # Create table
-        self._table = QTableWidget()
+        # Create tree widget (supports hierarchical data)
+        self._table = QTreeWidget()
 
-        # Configure table behavior
+        # Configure tree behavior
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setAlternatingRowColors(True)
-        self._table.setSortingEnabled(True)
-        self._table.verticalHeader().setVisible(False)
+        self._table.setSortingEnabled(False)  # Disabled during population, enabled after
+        self._table.setRootIsDecorated(True)  # Show expand/collapse indicators
+        self._table.setIndentation(20)  # Indent child items
+        self._table.setUniformRowHeights(False)  # Allow different row heights for widgets
+        self._table.setAnimated(True)  # Smooth expand/collapse animation
 
         # Install custom delegate to handle colored text
         self._table.setItemDelegate(ColoredTextDelegate(self._table))
@@ -151,17 +171,17 @@ class ServerTable(VBox):
         self.add_widget(self._table)
 
     def set_columns(self, columns: list[ColumnDefinition]) -> None:
-        """Set the table columns.
+        """Set the tree columns.
 
         Args:
             columns: List of column definitions
         """
         self._columns = columns
         self._table.setColumnCount(len(columns))
-        self._table.setHorizontalHeaderLabels([col.label for col in columns])
+        self._table.setHeaderLabels([col.label for col in columns])
 
         # Configure column widths
-        header = self._table.horizontalHeader()
+        header = self._table.header()
         for i, col in enumerate(columns):
             if col.width == "stretch":
                 header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
@@ -178,80 +198,161 @@ class ServerTable(VBox):
         self._refresh_table()
 
     def _refresh_table(self) -> None:
-        """Refresh the table with current servers."""
+        """Refresh the tree with current servers."""
+        if not self._columns:
+            return  # No columns set yet
+
         self._table.setSortingEnabled(False)
-        self._table.setRowCount(0)
+        self._table.clear()
+        self._table.setHeaderLabels([col.label for col in self._columns])
 
-        for row, server in enumerate(self._servers):
-            self._table.insertRow(row)
+        for server in self._servers:
+            # Check if server has multiple worlds
+            worlds = server.get_field('worlds', [])
+            has_worlds = isinstance(worlds, list) and len(worlds) > 0
 
-            # Populate columns based on column definitions
-            for col_idx, col in enumerate(self._columns):
-                # Handle links column specially with custom widget
-                if col.id == "links":
-                    links_widget = self._create_links_widget(server)
-                    self._table.setCellWidget(row, col_idx, links_widget)
-                    # Create empty item for sorting purposes
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                    self._table.setItem(row, col_idx, item)
-                    continue
+            # Create parent item for the server
+            if has_worlds:
+                # Server with multiple worlds - use NumericTreeWidgetItem for sorting
+                parent_item = NumericTreeWidgetItem(self._table)
+            else:
+                # Single world server
+                parent_item = NumericTreeWidgetItem(self._table)
 
-                value = self._get_column_value(server, col.id)
-                # Use NumericTableWidgetItem for columns that need numeric sorting
-                if col.id in ["players", "status"]:
-                    item = NumericTableWidgetItem(str(value))
-                else:
-                    item = QTableWidgetItem(str(value))
+            self._populate_server_item(parent_item, server, is_parent=has_worlds)
 
-                # Store server ID in first column
-                if col_idx == 0:
-                    item.setData(Qt.ItemDataRole.UserRole, server.id)
+            # Add child items for each world if applicable
+            if has_worlds:
+                for world in worlds:
+                    child_item = NumericTreeWidgetItem(parent_item)
+                    self._populate_world_item(child_item, world, server)
 
-                    # Add server icon if available
-                    if server.icon:
-                        # Try user icons directory first, fall back to bundled
-                        user_icon_path = get_app_paths().get_icons_dir() / server.icon
-                        bundled_icon_path = Path(__file__).parent.parent / "assets" / server.icon
+                # Expand parent by default
+                parent_item.setExpanded(True)
 
-                        icon_path = user_icon_path if user_icon_path.exists() else bundled_icon_path
-                        if icon_path.exists():
-                            item.setIcon(QIcon(str(icon_path)))
-
-                # Set numeric sort data for players column
-                if col.id == "players":
-                    # Set the actual player count as numeric data for proper sorting
-                    # Use -1 for unknown/offline servers so they sort to bottom
-                    player_count = server.players if server.players != -1 else -1
-                    item.setData(Qt.ItemDataRole.UserRole + 1, player_count)
-
-                    # Add tooltip for player count showing faction breakdown
-                    if server.alliance_count is not None or server.horde_count is not None:
-                        tooltip_parts = []
-                        if server.alliance_count is not None:
-                            tooltip_parts.append(f"Alliance: {server.alliance_count}")
-                        if server.horde_count is not None:
-                            tooltip_parts.append(f"Horde: {server.horde_count}")
-                        if tooltip_parts:
-                            item.setToolTip(" | ".join(tooltip_parts))
-
-                # Set numeric sort data for status column (by ping)
-                if col.id == "status":
-                    # Use ping_ms for sorting, with -1 (not pinged) sorting to bottom
-                    # Offline servers have ping_ms of 9999, so they sort after online
-                    item.setData(Qt.ItemDataRole.UserRole + 1, server.ping_ms if server.ping_ms != -1 else 999999)
-
-                # Special formatting for certain columns
-                if col.id in ["players", "uptime", "status"]:
-                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-                # Set status color with inline stylesheet (only if pinged)
-                if col.id == "status" and server.ping_ms != -1:
-                    self._set_status_color_inline(item, server.status, server.ping_ms)
-
-                self._table.setItem(row, col_idx, item)
-
+        # Re-enable sorting after all items are added
         self._table.setSortingEnabled(True)
+
+    def _populate_server_item(self, item: QTreeWidgetItem, server: ServerDefinition, is_parent: bool = False) -> None:
+        """Populate a tree item with server data.
+
+        Args:
+            item: Tree item to populate
+            server: Server definition
+            is_parent: Whether this is a parent item with child worlds
+        """
+        for col_idx, col in enumerate(self._columns):
+            # Handle links column specially with custom widget
+            if col.id == "links":
+                links_widget = self._create_links_widget(server)
+                self._table.setItemWidget(item, col_idx, links_widget)
+                continue
+
+            value = self._get_column_value(server, col.id)
+            item.setText(col_idx, str(value))
+
+            # Store server ID in first column
+            if col_idx == 0:
+                item.setData(0, Qt.ItemDataRole.UserRole, server.id)
+
+                # Add server icon if available
+                if server.icon:
+                    user_icon_path = get_app_paths().get_icons_dir() / server.icon
+                    bundled_icon_path = Path(__file__).parent.parent / "assets" / server.icon
+                    icon_path = user_icon_path if user_icon_path.exists() else bundled_icon_path
+                    if icon_path.exists():
+                        item.setIcon(0, QIcon(str(icon_path)))
+
+            # Set numeric sort data for players column
+            if col.id == "players":
+                player_count = server.players if server.players != -1 else -1
+                item.setData(col_idx, Qt.ItemDataRole.UserRole + 1, player_count)
+
+                # Add tooltip for player count showing faction breakdown
+                if server.alliance_count is not None or server.horde_count is not None:
+                    tooltip_parts = []
+                    if server.alliance_count is not None:
+                        tooltip_parts.append(f"Alliance: {server.alliance_count}")
+                    if server.horde_count is not None:
+                        tooltip_parts.append(f"Horde: {server.horde_count}")
+                    if tooltip_parts:
+                        item.setToolTip(col_idx, " | ".join(tooltip_parts))
+
+            # Set numeric sort data for status column (by ping)
+            if col.id == "status":
+                # Check if this server has multiple worlds
+                worlds = server.get_field('worlds', [])
+                if isinstance(worlds, list) and len(worlds) > 0:
+                    # Count online vs total worlds
+                    total_worlds = len(worlds)
+                    online_worlds = sum(1 for w in worlds if w.get('_ping_status') == ServerStatus.ONLINE)
+                    item.setText(col_idx, f"{online_worlds}/{total_worlds}")
+                    # Use average ping for sorting (or 0 if none online)
+                    if online_worlds > 0:
+                        avg_ping = sum(w.get('_ping_ms', 0) for w in worlds if w.get('_ping_status') == ServerStatus.ONLINE) // online_worlds
+                        item.setData(col_idx, Qt.ItemDataRole.UserRole + 1, avg_ping)
+                    else:
+                        item.setData(col_idx, Qt.ItemDataRole.UserRole + 1, 999999)
+                else:
+                    item.setData(col_idx, Qt.ItemDataRole.UserRole + 1, server.ping_ms if server.ping_ms != -1 else 999999)
+
+            # Special formatting for certain columns
+            if col.id in ["players", "uptime", "status"]:
+                item.setTextAlignment(col_idx, Qt.AlignmentFlag.AlignCenter)
+
+            # Set status color (only if pinged)
+            if col.id == "status" and server.ping_ms != -1:
+                # Don't set color for multi-world servers (they show X/Y format)
+                worlds = server.get_field('worlds', [])
+                if not (isinstance(worlds, list) and len(worlds) > 0):
+                    self._set_status_color_inline_tree(item, col_idx, server.status, server.ping_ms)
+
+    def _populate_world_item(self, item: QTreeWidgetItem, world: dict, server: ServerDefinition) -> None:
+        """Populate a tree item with world data.
+
+        Args:
+            item: Tree item to populate
+            world: World dictionary with 'name', 'location', 'host'
+            server: Parent server definition
+        """
+        for col_idx, col in enumerate(self._columns):
+            if col.id == "name":
+                # Show world name and location
+                world_name = world.get('name', 'Unknown')
+                location = world.get('location', '')
+                display_text = f"  {world_name}"
+                if location:
+                    display_text += f" - {location}"
+                item.setText(col_idx, display_text)
+                # Store server ID so context menu works
+                item.setData(0, Qt.ItemDataRole.UserRole, server.id)
+            elif col.id == "status":
+                # Show world ping status
+                ping_ms = world.get('_ping_ms', -1)
+                status = world.get('_ping_status', ServerStatus.OFFLINE)
+
+                if ping_ms == -1:
+                    # Not pinged yet
+                    item.setText(col_idx, "-")
+                elif status == ServerStatus.ONLINE and ping_ms >= 0:
+                    item.setText(col_idx, f"🟢 {ping_ms}ms")
+                    # Set numeric sort data
+                    item.setData(col_idx, Qt.ItemDataRole.UserRole + 1, ping_ms)
+                    # Set status color
+                    self._set_status_color_inline_tree(item, col_idx, status, ping_ms)
+                elif status == ServerStatus.OFFLINE:
+                    item.setText(col_idx, "🔴 Offline")
+                    item.setData(col_idx, Qt.ItemDataRole.UserRole + 1, 9999)
+                    self._set_status_color_inline_tree(item, col_idx, status, ping_ms)
+
+                item.setTextAlignment(col_idx, Qt.AlignmentFlag.AlignCenter)
+            elif col.id == "address":
+                # Show world host
+                host = world.get('host', '')
+                item.setText(col_idx, host)
+            else:
+                # Leave other columns empty for world items
+                item.setText(col_idx, "")
 
     def _create_links_widget(self, server: ServerDefinition) -> QWidget:
         """Create a widget with clickable link icons for a server.
@@ -410,11 +511,12 @@ class ServerTable(VBox):
         else:
             return f"● {status.value}"
 
-    def _set_status_color_inline(self, item: QTableWidgetItem, status: ServerStatus, ping_ms: int) -> None:
-        """Set status color using inline stylesheet.
+    def _set_status_color_inline_tree(self, item: QTreeWidgetItem, column: int, status: ServerStatus, ping_ms: int) -> None:
+        """Set status color for tree widget item.
 
         Args:
-            item: Table item
+            item: Tree item
+            column: Column index
             status: Server status
             ping_ms: Ping in milliseconds (-1 if not pinged)
         """
@@ -445,16 +547,14 @@ class ServerTable(VBox):
                     else:
                         color = tokens.fg_primary
 
-                    # Use data role to store color for inline styling
-                    # This won't work directly, so we need a different approach
                     from PySide6.QtGui import QColor, QBrush
                     from PySide6.QtCore import Qt
 
-                    # Set font color
-                    item.setForeground(QBrush(QColor(color)))
+                    # Set font color for this column
+                    item.setForeground(column, QBrush(QColor(color)))
 
-                    # ALSO set background to transparent explicitly to avoid issues
-                    item.setBackground(QBrush(Qt.GlobalColor.transparent))
+                    # Set background to transparent
+                    item.setBackground(column, QBrush(Qt.GlobalColor.transparent))
         except (AttributeError, ImportError):
             pass
 
@@ -462,17 +562,21 @@ class ServerTable(VBox):
         """Handle selection change."""
         items = self._table.selectedItems()
         if items:
-            server_id = items[0].data(Qt.ItemDataRole.UserRole)
+            # Get the first column item (contains server ID)
+            item = items[0]
+            # For tree items, get data from column 0
+            server_id = item.data(0, Qt.ItemDataRole.UserRole)
             if server_id:
                 self.server_selected.emit(server_id)
 
-    def _on_item_double_clicked(self, item: QTableWidgetItem) -> None:
+    def _on_item_double_clicked(self, item: QTreeWidgetItem, column: int) -> None:
         """Handle item double click.
 
         Args:
             item: Double-clicked item
+            column: Column that was clicked
         """
-        server_id = item.data(Qt.ItemDataRole.UserRole)
+        server_id = item.data(0, Qt.ItemDataRole.UserRole)
         if server_id:
             self.server_double_clicked.emit(server_id)
 
@@ -486,7 +590,7 @@ class ServerTable(VBox):
         if not item:
             return
 
-        server_id = item.data(Qt.ItemDataRole.UserRole)
+        server_id = item.data(0, Qt.ItemDataRole.UserRole)
         if not server_id:
             return
 
@@ -585,6 +689,24 @@ class ServerTable(VBox):
                 status, ping_ms = ping_results[server.id]
                 server.status = status
                 server.ping_ms = ping_ms
+
+            # Also ping individual worlds if they exist
+            worlds = server.get_field('worlds', [])
+            if isinstance(worlds, list) and len(worlds) > 0:
+                # Collect world hosts to ping
+                world_hosts = [world.get('host', '') for world in worlds if world.get('host')]
+
+                if world_hosts:
+                    # Ping all world hosts
+                    world_ping_results = ping_multiple_hosts_sync(world_hosts, timeout=3.0)
+
+                    # Store ping results in the world dicts
+                    for world in worlds:
+                        world_host = world.get('host', '')
+                        if world_host and world_host in world_ping_results:
+                            status, ping_ms = world_ping_results[world_host]
+                            world['_ping_status'] = status
+                            world['_ping_ms'] = ping_ms
 
         # Refresh table to show updated statuses
         self._refresh_table()

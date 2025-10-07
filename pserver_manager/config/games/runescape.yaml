@@ -76,6 +76,10 @@ table_columns:
     label: "Status"
     width: content
 
+  - id: address
+    label: "Host"
+    width: content
+
   - id: links
     label: "Links"
     width: content
@@ -137,6 +141,12 @@ server_schema:
     required: false
     default: ""
     description: "Server host/IP"
+
+  - name: worlds
+    type: list
+    required: false
+    default: []
+    description: "List of game worlds with name, location, and host. Each world should have 'name' (e.g., 'World 1'), 'location' (e.g., 'US East'), and 'host' (IP:port)"
 
   - name: version_id
     type: string
