@@ -6,6 +6,8 @@ reddit: chromiecraft
 repository:
   - type: github
     id: chromiecraft/chromiecraft
+  - type: github
+    id: chromiecraft/roleplay-board
 host: logon.chromiecraft.com
 version_id: wotlk
 status: online
@@ -15,7 +17,14 @@ realm_type: PvP
 rates: 1x
 population: High
 language: English
-description: ChromieCraft is a fan-made progressive Wrath of the Lich King server that delves deeper into exploring the original lore of the game.
+description: ChromieCraft is a fan-made progressive Wrath of the Lich King server that delves deeper into exploring the original lore of the game. Powered by AzerothCore.
+downloads:
+  - name: Windows Client (Direct)
+    url: https://bit.ly/3JwHKKX
+  - name: Windows Client (Torrent)
+    url: https://bit.ly/3Ug4UtJ
+  - name: Mega Mirror
+    url: https://mega.nz/file/gs4kjBRD#CdoujnfW3cvR_uy3K_uco0HELKQ2RtbtK_LZLyuGF8Y
 scraping:
   url: https://www.chromiecraft.com/apps/server-status/
   use_browser: true

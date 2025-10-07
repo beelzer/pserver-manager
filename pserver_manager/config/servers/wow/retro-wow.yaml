@@ -1,7 +1,7 @@
 id: retro-wow
 name: Retro-WoW
 website: https://retro-wow.org/
-discord: ShEQcFJd
+discord: pzvkJyNEZy
 repository: []
 host: logon.retro-wow.org
 version_id: vanilla
@@ -12,6 +12,9 @@ realm_type: PvE/PvP
 rates: Custom (Flexible)
 population: Medium
 language: English
-description: Long-standing custom Vanilla
+description: Long-standing custom Vanilla WoW server running since January 2015. Features instant level 60 or x3 leveling, 5-man raids, cross-faction battlegrounds, arena (2v2/3v3/5v5), transmogrification, daily quests, and anti-cheat system with automatic daily backups.
 register_url: https://retro-wow.org/register
 login_url: https://retro-wow.org/
+downloads:
+  - name: Windows Client
+    url: https://drive.google.com/file/d/1BVYyC49HXTUsv0E5gp7gSoDpmtsKqdIM/view

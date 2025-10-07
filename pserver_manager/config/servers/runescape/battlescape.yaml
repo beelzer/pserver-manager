@@ -17,12 +17,16 @@ description: An Old School RuneScape PvP server
 login_url: https://www.battlescape.io/login
 register_url: https://www.battlescape.io/register
 downloads:
-  - name: Windows Client
-    url: https://www.battlescape.io/download
-  - name: macOS Client
-    url: https://www.battlescape.io/download
-  - name: Linux Client
-    url: https://www.battlescape.io/download
+  - name: Web Client
+    url: https://www.battlescape.io/game/webclient
+  - name: Android Client
+    url: https://www.battlescape.io/play?startdl=BattleScape.apk
+  - name: Windows (64-bit)
+    url: https://www.battlescape.io/play?startdl=BattleScape64.exe
+  - name: Windows (32-bit)
+    url: https://www.battlescape.io/play?startdl=BattleScape32.exe
+  - name: Java (Cross-Platform)
+    url: https://www.battlescape.io/play?startdl=BattleScape.jar
 _metadata:
   source: bundled
   app_version: 1.0.0

@@ -3,7 +3,9 @@ name: Elysium Project
 website: https://elysium-project.org/
 discord: w6bfD7E
 reddit: ElysiumProject
-repository: []
+repository:
+  - type: github
+    id: elysium-project/bug-tracker
 host: logon.elysium-project.org
 version_id: vanilla
 status: online
@@ -15,6 +17,11 @@ population: High
 language: English
 description: Nighthaven PvP is Progressive Vanilla WoW Gaming with Blizz-like content.
   It's Vanilla as you remember it.
+downloads:
+  - name: Google Drive
+    url: https://drive.google.com/file/d/1TDoNNUXCtsgIUhLw96biPCqjv3AcLYkg/view
+  - name: Mega
+    url: https://mega.nz/#!uYxBWAYb!4bV1pqFl2-zXRS7063GqzAnt53oe5jTcmlVce9CtKPc
 register_url: https://elysium-project.org/howtoplay/en
 login_url: https://elysium-project.org/howtoplay/en
 scraping:
