@@ -15,6 +15,7 @@ language: English
 description: The oldest and most dedicated WoW server Community since 2010.
 updates_url: https://truewow.org/changelog
 updates_use_js: true
+updates_max_dropdown_options: 12
 updates_selectors:
   dropdown: "select[name='logs']"
   item: "h2.inner"

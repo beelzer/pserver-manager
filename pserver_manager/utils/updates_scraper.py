@@ -65,6 +65,7 @@ class UpdatesScraper:
         limit: int = 10,
         wait_time: int = 2000,
         max_dropdown_options: int | None = None,
+        parallel_browsers: int = 4,
     ) -> list[ServerUpdate]:
         """Fetch updates from a dropdown/form-based changelog using Playwright.
 
@@ -79,6 +80,7 @@ class UpdatesScraper:
             limit: Maximum number of updates to return (per dropdown option)
             wait_time: Time to wait after selecting dropdown option (milliseconds)
             max_dropdown_options: Maximum number of dropdown options to iterate
+            parallel_browsers: Number of parallel browser instances to use
 
         Returns:
             List of ServerUpdate objects aggregated from all dropdown options
@@ -88,13 +90,14 @@ class UpdatesScraper:
             return []
 
         try:
+            import concurrent.futures
+            import threading
+
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
                 page = browser.new_page()
                 page.goto(url, wait_until='networkidle', timeout=15000)
                 page.wait_for_timeout(1000)  # Initial wait
-
-                all_updates = []
 
                 # First, extract all dropdown option values (before any navigation)
                 options = page.query_selector_all(f"{dropdown_selector} option")
@@ -104,25 +107,37 @@ class UpdatesScraper:
                     if val:
                         option_values.append(val)
 
+                page.close()
+
                 print(f"Found {len(option_values)} dropdown options")
 
                 # Limit number of options if specified
                 if max_dropdown_options:
                     option_values = option_values[:max_dropdown_options]
 
-                # Now iterate through values, re-selecting dropdown each time
-                for i, value in enumerate(option_values):
+                print(f"Processing {len(option_values)} options with {parallel_browsers} parallel browsers")
+
+                all_updates = []
+                updates_lock = threading.Lock()
+
+                def process_option(value_index_tuple):
+                    i, value = value_index_tuple
                     try:
+                        # Each thread gets its own page from the browser
+                        page = browser.new_page()
+                        page.goto(url, wait_until='networkidle', timeout=15000)
+                        page.wait_for_timeout(500)
+
                         print(f"Processing dropdown option {i+1}/{len(option_values)}: {value}")
 
                         # Select the option by value
                         page.select_option(dropdown_selector, value)
 
-                        # Wait for page to reload/update (form submit causes navigation)
+                        # Wait for page to reload/update
                         try:
                             page.wait_for_load_state('networkidle', timeout=10000)
                         except:
-                            pass  # Continue even if timeout
+                            pass
 
                         page.wait_for_timeout(wait_time)
 
@@ -136,11 +151,18 @@ class UpdatesScraper:
                             link_selector, time_selector, preview_selector, limit
                         )
 
-                        all_updates.extend(updates)
+                        page.close()
+
+                        # Thread-safe append
+                        with updates_lock:
+                            all_updates.extend(updates)
 
                     except Exception as e:
                         print(f"Error processing dropdown option {i}: {e}")
-                        continue
+
+                # Process in parallel using thread pool
+                with concurrent.futures.ThreadPoolExecutor(max_workers=parallel_browsers) as executor:
+                    executor.map(process_option, enumerate(option_values))
 
                 browser.close()
                 return all_updates

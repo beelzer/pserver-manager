@@ -440,6 +440,7 @@ class MainWindow(BaseWindow):
                     use_js=game_def.updates_use_js,
                     selectors=game_def.updates_selectors,
                     limit=10,
+                    max_dropdown_options=getattr(game_def, 'updates_max_dropdown_options', None),
                 )
             else:
                 self._info_panel.set_updates_url("")
@@ -495,6 +496,7 @@ class MainWindow(BaseWindow):
                     use_js=game_def.updates_use_js,
                     selectors=game_def.updates_selectors,
                     limit=10,
+                    max_dropdown_options=getattr(game_def, 'updates_max_dropdown_options', None),
                 )
             else:
                 self._info_panel.set_updates_url("")
@@ -570,7 +572,7 @@ class MainWindow(BaseWindow):
 
         return elapsed_hours >= self._updates_cache_hours
 
-    def _fetch_updates(self, url: str, is_rss: bool, use_js: bool, selectors: dict, limit: int = 10, force: bool = False) -> None:
+    def _fetch_updates(self, url: str, is_rss: bool, use_js: bool, selectors: dict, limit: int = 10, max_dropdown_options: int | None = None, force: bool = False) -> None:
         """Fetch updates with cache checking.
 
         Args:
@@ -579,6 +581,7 @@ class MainWindow(BaseWindow):
             use_js: Whether to use JavaScript rendering
             selectors: CSS selectors dict
             limit: Number of updates to fetch
+            max_dropdown_options: Max dropdown options for dropdown-based changelogs
             force: If True, bypass cache and force fetch
         """
         import time
@@ -597,6 +600,7 @@ class MainWindow(BaseWindow):
             use_js=use_js,
             selectors=selectors,
             limit=limit,
+            max_dropdown_options=max_dropdown_options,
         )
 
         # Update last fetch time
@@ -679,6 +683,7 @@ class MainWindow(BaseWindow):
                     use_js=server.updates_use_js,
                     selectors=server.updates_selectors,
                     limit=10,
+                    max_dropdown_options=getattr(server, 'updates_max_dropdown_options', None),
                 )
             else:
                 self._info_panel.set_updates_url("")
