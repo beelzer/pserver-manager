@@ -17,11 +17,11 @@ updates_url: https://truewow.org/changelog
 updates_use_js: true
 updates_selectors:
   dropdown: "select[name='logs']"
-  item: "#changelog-panel .panel"
-  title: "select[name='logs'] option:selected"
+  item: "h2.inner"
+  title: "select[name='logs'] option[selected]"
   link: ""
-  time: "select[name='logs'] option:selected"
-  preview: "h2.inner"
+  time: "select[name='logs'] option[selected]"
+  preview: ""
 downloads:
   - name: Client Download
     url: https://truewow.org/download
