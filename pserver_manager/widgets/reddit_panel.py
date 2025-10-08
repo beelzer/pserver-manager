@@ -34,11 +34,12 @@ class InfoPanel(VBox):
 
         # Create loading bar (slim, indeterminate progress)
         self._loading_bar = QProgressBar()
-        self._loading_bar.setMaximumHeight(4)
+        self._loading_bar.setMaximumHeight(6)
         self._loading_bar.setMinimum(0)
         self._loading_bar.setMaximum(0)  # Indeterminate mode
         self._loading_bar.setTextVisible(False)
         self._loading_bar.hide()  # Hidden by default
+        self._update_loading_bar_style()
         self.add_widget(self._loading_bar)
 
         # Create tab widget
@@ -125,6 +126,21 @@ class InfoPanel(VBox):
 
         return tab
 
+    def _update_loading_bar_style(self) -> None:
+        """Update loading bar style based on current theme."""
+        palette = self.palette()
+        highlight_color = palette.color(QPalette.ColorRole.Highlight).name()
+
+        self._loading_bar.setStyleSheet(f"""
+            QProgressBar {{
+                border: none;
+                background-color: transparent;
+            }}
+            QProgressBar::chunk {{
+                background-color: {highlight_color};
+            }}
+        """)
+
     def _add_url_breaks(self, match: re.Match) -> str:
         """Add zero-width spaces to URLs to allow breaking.
 
@@ -152,6 +168,7 @@ class InfoPanel(VBox):
 
         # Re-render posts when palette changes (theme switch)
         if event.type() == QEvent.Type.PaletteChange:
+            self._update_loading_bar_style()
             if self._current_posts:
                 self.set_posts(self._current_posts)
 

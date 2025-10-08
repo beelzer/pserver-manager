@@ -123,48 +123,52 @@ class UpdatesScraper:
                 def process_option(value_index_tuple):
                     i, value = value_index_tuple
                     try:
-                        # Each thread gets its own page from the browser
-                        page = browser.new_page()
-                        page.goto(url, wait_until='networkidle', timeout=15000)
-                        page.wait_for_timeout(500)
+                        # Each thread creates its own playwright context and browser
+                        # This prevents greenlet threading issues
+                        with sync_playwright() as p:
+                            browser = p.chromium.launch(headless=True)
+                            page = browser.new_page()
+                            page.goto(url, wait_until='networkidle', timeout=15000)
+                            page.wait_for_timeout(500)
 
-                        print(f"Processing dropdown option {i+1}/{len(option_values)}: {value}")
+                            print(f"Processing dropdown option {i+1}/{len(option_values)}: {value}")
 
-                        # Select the option by value
-                        page.select_option(dropdown_selector, value)
+                            # Select the option by value
+                            page.select_option(dropdown_selector, value)
 
-                        # Wait for page to reload/update
-                        try:
-                            page.wait_for_load_state('networkidle', timeout=10000)
-                        except:
-                            pass
+                            # Wait for page to reload/update
+                            try:
+                                page.wait_for_load_state('networkidle', timeout=10000)
+                            except:
+                                pass
 
-                        page.wait_for_timeout(wait_time)
+                            page.wait_for_timeout(wait_time)
 
-                        # Get page content
-                        content = page.content()
-                        soup = BeautifulSoup(content, 'html.parser')
+                            # Get page content
+                            content = page.content()
+                            soup = BeautifulSoup(content, 'html.parser')
 
-                        # Parse updates from this option's content
-                        updates = self._parse_updates_from_soup(
-                            soup, url, item_selector, title_selector,
-                            link_selector, time_selector, preview_selector, limit
-                        )
+                            # Parse updates from this option's content
+                            updates = self._parse_updates_from_soup(
+                                soup, url, item_selector, title_selector,
+                                link_selector, time_selector, preview_selector, limit
+                            )
 
-                        page.close()
+                            page.close()
+                            browser.close()
 
-                        # Thread-safe append
-                        with updates_lock:
-                            all_updates.extend(updates)
+                            # Thread-safe append
+                            with updates_lock:
+                                all_updates.extend(updates)
 
                     except Exception as e:
                         print(f"Error processing dropdown option {i}: {e}")
 
                 # Process in parallel using thread pool
+                # Each thread has its own browser so no shared browser to close
                 with concurrent.futures.ThreadPoolExecutor(max_workers=parallel_browsers) as executor:
                     executor.map(process_option, enumerate(option_values))
 
-                browser.close()
                 return all_updates
 
         except Exception as e:

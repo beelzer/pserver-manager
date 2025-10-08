@@ -1,0 +1,36 @@
+id: alora
+name: Alora
+website: https://www.alora.io/
+discord: CHJzZUM
+reddit: ""
+repository: []
+host: ""
+version_id: osrs
+status: online
+icon: servers/runescape/alora.png
+runelite: true
+server_type: Custom
+rates: Custom
+population: High
+language: English
+description: A popular Old School RuneScape private server
+downloads:
+  - name: Windows (64-bit)
+    url: https://www.alora.io/downloads/AloraSetup64.exe
+  - name: Windows (32-bit)
+    url: https://www.alora.io/downloads/AloraSetup32.exe
+  - name: macOS
+    url: https://www.alora.io/downloads/Alora.dmg
+  - name: M1 Mac
+    url: https://www.alora.io/downloads/AloraM1.dmg
+  - name: Java (Multi-platform)
+    url: https://www.alora.io/downloads/Alora.jar
+  - name: Android
+    url: https://www.alora.io/downloads/Alora.apk
+  - name: iOS/iPhone
+    url: https://mobile.alora.io
+_metadata:
+  source: bundled
+  app_version: 1.0.0
+  content_hash: ""
+  last_updated: ''
