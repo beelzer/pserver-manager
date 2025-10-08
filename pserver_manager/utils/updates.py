@@ -56,6 +56,7 @@ class UpdateInfo:
 
     new_servers: list[str]  # Server IDs that are new
     updated_servers: list[str]  # Server IDs that have updates
+    removed_servers: list[str]  # Server IDs that were removed from bundled configs
     conflicts: list[str]  # Server IDs with conflicts (user modified bundled server)
     schema_migration_needed: bool  # Settings schema needs migration
     new_themes: list[str]  # Theme names that are new
@@ -239,6 +240,7 @@ class ServerUpdateChecker:
         """
         new_servers = []
         updated_servers = []
+        removed_servers = []
         conflicts = []
 
         # Get all bundled servers
@@ -292,12 +294,31 @@ class ServerUpdateChecker:
                         # Clean update - bundled version changed, user didn't modify
                         updated_servers.append(server_id)
 
+        # Check for removed servers (bundled servers in user dir that no longer exist in bundled)
+        if self.user_dir.exists():
+            for game_dir in self.user_dir.iterdir():
+                if game_dir.is_dir():
+                    for user_file in game_dir.glob("*.yaml"):
+                        server_id = f"{game_dir.name}.{user_file.stem}"
+
+                        # Skip if this server is in bundled (already handled above)
+                        if server_id in bundled_servers:
+                            continue
+
+                        # Check if this was a bundled server
+                        user_data, user_metadata = self.load_server_with_metadata(user_file)
+
+                        if user_metadata and user_metadata.source == "bundled":
+                            # This was a bundled server but no longer exists in bundled configs
+                            removed_servers.append(server_id)
+
         # Check for theme updates
         new_themes, updated_themes, theme_conflicts = self.check_for_theme_updates()
 
         return UpdateInfo(
             new_servers=new_servers,
             updated_servers=updated_servers,
+            removed_servers=removed_servers,
             conflicts=conflicts,
             schema_migration_needed=False,  # TODO: Implement schema migration detection
             new_themes=new_themes,
@@ -430,3 +451,46 @@ class ServerUpdateChecker:
                 count += 1
 
         return count
+
+    def remove_server(self, server_id: str) -> bool:
+        """Remove a server from the user directory.
+
+        Args:
+            server_id: Server ID to remove (e.g., "wow.chromiecraft")
+
+        Returns:
+            True if successful
+        """
+        try:
+            game_id, server_name = server_id.split(".", 1)
+            user_file = self.user_dir / game_id / f"{server_name}.yaml"
+
+            if not user_file.exists():
+                return False
+
+            # Remove the file
+            user_file.unlink()
+
+            # Also remove icon if it exists
+            icon_patterns = [
+                f"servers/{game_id}/{server_name}.png",
+                f"servers/{game_id}/{server_name}.jpg",
+                f"servers/{game_id}/{server_name}.jpeg",
+            ]
+
+            # Check in common asset locations
+            asset_dirs = [
+                self.user_dir.parent.parent / "assets",  # Assuming structure: config/servers/user -> assets
+            ]
+
+            for asset_dir in asset_dirs:
+                if asset_dir.exists():
+                    for pattern in icon_patterns:
+                        icon_file = asset_dir / pattern
+                        if icon_file.exists():
+                            icon_file.unlink()
+
+            return True
+        except Exception as e:
+            print(f"Error removing server {server_id}: {e}")
+            return False

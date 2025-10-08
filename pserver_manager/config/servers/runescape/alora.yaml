@@ -4,7 +4,7 @@ website: https://www.alora.io/
 discord: CHJzZUM
 reddit: ""
 repository: []
-host: ""
+host: "149.56.140.239:54900"
 version_id: osrs
 status: online
 icon: servers/runescape/alora.png
@@ -14,6 +14,16 @@ rates: Custom
 population: High
 language: English
 description: A popular Old School RuneScape private server
+updates_url: https://www.alora.io/forums/forum/14-updates/
+updates_forum_mode: true
+updates_forum_page_limit: 2
+updates_forum_pagination_selector: ".pagination .next a"
+updates_selectors:
+  item: "tr.__topic"
+  title: "h4 a.topic_title"
+  link: "h4 a.topic_title"
+  time: ".desc span[itemprop='dateCreated']"
+  preview: ""
 downloads:
   - name: Windows (64-bit)
     url: https://www.alora.io/downloads/AloraSetup64.exe

@@ -14,6 +14,16 @@ rates: 1x
 population: Low
 language: English
 description: A RuneScape 2 private server focused on authenticity
+updates_url: https://www.runerebels.com/smf/index.php?board=2.0
+updates_forum_mode: true
+updates_forum_page_limit: 2
+updates_forum_pagination_selector: ".pagelinks a.navPages:last-child"
+updates_selectors:
+  item: "div.windowbg:not(.sticky)"
+  title: ".message_index_title a"
+  link: ".message_index_title a"
+  time: ".lastpost a"
+  preview: ""
 downloads:
   - name: Windows
     url: https://www.runerebels.com/download/zips/windows/runerebels.zip

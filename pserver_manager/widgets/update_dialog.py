@@ -86,6 +86,11 @@ class UpdateDialog(QDialog):
             updated_group = self._create_updated_servers_section()
             content_layout.addWidget(updated_group)
 
+        # Removed Servers Section
+        if self.update_info.removed_servers:
+            removed_group = self._create_removed_servers_section()
+            content_layout.addWidget(removed_group)
+
         # Conflicts Section
         if self.update_info.conflicts:
             conflicts_group = self._create_conflicts_section()
@@ -132,6 +137,8 @@ class UpdateDialog(QDialog):
             parts.append(f"<b>{len(self.update_info.new_servers)}</b> new server(s)")
         if self.update_info.updated_servers:
             parts.append(f"<b>{len(self.update_info.updated_servers)}</b> server update(s)")
+        if self.update_info.removed_servers:
+            parts.append(f"<b>{len(self.update_info.removed_servers)}</b> removed server(s)")
         if self.update_info.conflicts:
             parts.append(f"<b>{len(self.update_info.conflicts)}</b> server conflict(s)")
         if self.update_info.new_themes:
@@ -198,6 +205,34 @@ class UpdateDialog(QDialog):
             self.updated_servers_list.addItem(item)
 
         layout.addWidget(self.updated_servers_list)
+
+        return group
+
+    def _create_removed_servers_section(self) -> QGroupBox:
+        """Create removed servers section.
+
+        Returns:
+            GroupBox with removed servers
+        """
+        group = QGroupBox(f"Removed Servers ({len(self.update_info.removed_servers)})")
+        layout = QVBoxLayout(group)
+
+        info = QLabel(
+            "<b>Warning:</b> These servers were previously bundled but have been removed from the official configuration. "
+            "They will no longer receive updates. Select which ones to remove from your collection:"
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        self.removed_servers_list = QListWidget()
+
+        for server_id in self.update_info.removed_servers:
+            item = QListWidgetItem(server_id)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled)
+            item.setCheckState(Qt.CheckState.Unchecked)  # Default: keep (user decides)
+            self.removed_servers_list.addItem(item)
+
+        layout.addWidget(self.removed_servers_list)
 
         return group
 
@@ -366,6 +401,17 @@ class UpdateDialog(QDialog):
                 if item.checkState() == Qt.CheckState.Checked:
                     server_id = item.text()
                     if self.update_checker.update_server(server_id):
+                        success_count += 1
+                    else:
+                        error_count += 1
+
+        # Remove servers
+        if hasattr(self, "removed_servers_list"):
+            for i in range(self.removed_servers_list.count()):
+                item = self.removed_servers_list.item(i)
+                if item.checkState() == Qt.CheckState.Checked:
+                    server_id = item.text()
+                    if self.update_checker.remove_server(server_id):
                         success_count += 1
                     else:
                         error_count += 1

@@ -938,6 +938,7 @@ class MainWindow(BaseWindow):
             has_updates = (
                 len(update_info.new_servers) > 0
                 or len(update_info.updated_servers) > 0
+                or len(update_info.removed_servers) > 0
                 or len(update_info.conflicts) > 0
                 or len(update_info.new_themes) > 0
                 or len(update_info.updated_themes) > 0
@@ -971,6 +972,7 @@ class MainWindow(BaseWindow):
             has_updates = (
                 len(update_info.new_servers) > 0
                 or len(update_info.updated_servers) > 0
+                or len(update_info.removed_servers) > 0
                 or len(update_info.conflicts) > 0
                 or len(update_info.new_themes) > 0
                 or len(update_info.updated_themes) > 0
