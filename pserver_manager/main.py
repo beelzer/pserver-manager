@@ -19,7 +19,7 @@ from qtframework.widgets.buttons import Button, ButtonSize, ButtonVariant
 from qtframework.widgets.advanced import NotificationManager
 from qtframework.widgets.advanced.notifications import NotificationPosition
 
-from pserver_manager.config_loader import ColumnDefinition, ConfigLoader, GameDefinition
+from pserver_manager.config_loader import ColumnDefinition, ConfigLoader, GameDefinition, ServerDefinition
 from pserver_manager.models import Game
 from pserver_manager.utils import ServerUpdateChecker, get_app_paths
 from pserver_manager.utils.qt_reddit_worker import RedditFetchHelper
@@ -82,6 +82,7 @@ class MainWindow(BaseWindow):
         self._game_defs: list[GameDefinition] = []
         self._all_servers = []
         self._current_game: GameDefinition | None = None
+        self._current_server: ServerDefinition | None = None
         self._load_config()
 
         super().__init__(application=application)
@@ -116,10 +117,21 @@ class MainWindow(BaseWindow):
         self._updates_cache: dict[str, list[dict]] = {}  # URL -> cached updates
         self._updates_cache_hours = 24  # Cache updates for 24 hours
 
+        # Batch scanner for parallel server scanning
+        from pserver_manager.utils.batch_scanner import BatchScanHelper
+
+        self._batch_scanner = BatchScanHelper()
+        self._batch_scanner.progress.connect(self._on_scan_progress)
+        self._batch_scanner.data_complete.connect(self._on_server_data_complete)
+        self._batch_scanner.finished.connect(self._on_batch_scan_finished)
+        self._batch_scanner.error.connect(self._on_scan_error)
+        self._server_data_cache: dict[str, object] = {}  # Cache all server data  # server_id -> ScanResult
+
         # Check for updates on startup (after window is shown)
         from PySide6.QtCore import QTimer
 
         QTimer.singleShot(1000, self._check_for_updates_on_startup)
+        QTimer.singleShot(2000, self._start_batch_scan_if_enabled)
 
     def _init_config(self) -> None:
         """Initialize configuration with defaults."""
@@ -145,6 +157,10 @@ class MainWindow(BaseWindow):
                 "theme": "dark",
                 "auto_refresh_interval": 300,
                 "show_offline_servers": True,
+            },
+            "scanning": {
+                "scan_on_startup": True,
+                "parallel_scan_limit": 5,
             },
             "network": {
                 "ping_timeout": 3,
@@ -226,8 +242,41 @@ class MainWindow(BaseWindow):
         # Add splitter with stretch to fill vertical space
         main_layout.add_widget(splitter, stretch=1)
 
+        # Create status bar at the bottom
+        self._setup_status_bar(main_layout)
+
         # Set central widget
         self.setCentralWidget(main_layout)
+
+    def _setup_status_bar(self, parent_layout) -> None:
+        """Setup status bar with progress indication.
+
+        Args:
+            parent_layout: Parent layout to add status bar to
+        """
+        from PySide6.QtWidgets import QLabel, QProgressBar
+
+        from qtframework.widgets import HBox
+
+        # Create status bar container
+        status_bar = HBox(spacing=8, margins=(8, 4, 8, 4))
+
+        # Status label (left side)
+        self._status_label = QLabel("Ready")
+        status_bar.add_widget(self._status_label)
+
+        status_bar.add_stretch()
+
+        # Progress bar (right side, initially hidden)
+        self._progress_bar = QProgressBar()
+        self._progress_bar.setMinimum(0)
+        self._progress_bar.setMaximum(100)
+        self._progress_bar.setTextVisible(True)
+        self._progress_bar.setFixedWidth(200)
+        self._progress_bar.setVisible(False)
+        status_bar.add_widget(self._progress_bar)
+
+        parent_layout.add_widget(status_bar)
 
     def _create_theme_menu(self, theme_menu) -> None:
         """Create theme submenu with available themes.
@@ -323,9 +372,14 @@ class MainWindow(BaseWindow):
         fetch_info_action.triggered.connect(self._on_fetch_player_counts)
         file_menu.addAction(fetch_info_action)
 
+        refresh_reddit_action = QAction("Refresh &Reddit", self)
+        refresh_reddit_action.setShortcut("Ctrl+R")
+        refresh_reddit_action.triggered.connect(self._on_refresh_reddit)
+        file_menu.addAction(refresh_reddit_action)
+
         refresh_updates_action = QAction("Refresh &Updates", self)
         refresh_updates_action.setShortcut("Ctrl+U")
-        refresh_updates_action.triggered.connect(self._force_refresh_updates)
+        refresh_updates_action.triggered.connect(self._on_refresh_updates)
         file_menu.addAction(refresh_updates_action)
 
         file_menu.addSeparator()
@@ -378,6 +432,7 @@ class MainWindow(BaseWindow):
     def _show_all_servers(self) -> None:
         """Show all servers with generic columns."""
         self._current_game = None
+        self._current_server = None
 
         # Use generic columns for all servers view
         generic_columns = [
@@ -525,6 +580,11 @@ class MainWindow(BaseWindow):
         """
         self._info_panel.set_posts(posts)
 
+        # Update cache if we have a current server
+        if self._current_server and self._current_server.id in self._server_data_cache:
+            self._server_data_cache[self._current_server.id].reddit_posts = posts
+            self._server_data_cache[self._current_server.id].reddit_error = None
+
     def _on_reddit_error(self, error: str) -> None:
         """Handle Reddit fetch error.
 
@@ -532,6 +592,10 @@ class MainWindow(BaseWindow):
             error: Error message
         """
         self._info_panel.set_content(f"Error loading Reddit posts:\n{error}")
+
+        # Update cache if we have a current server
+        if self._current_server and self._current_server.id in self._server_data_cache:
+            self._server_data_cache[self._current_server.id].reddit_error = error
 
     def _on_updates_fetched(self, updates: list) -> None:
         """Handle server updates being fetched.
@@ -652,6 +716,95 @@ class MainWindow(BaseWindow):
         else:
             self._notifications.warning("No Updates", "No updates source available for current selection")
 
+    def _on_refresh_reddit(self) -> None:
+        """Refresh Reddit data for currently selected server."""
+        if not self._current_server:
+            self._notifications.warning("No Server", "No server selected")
+            return
+
+        if not self._current_server.reddit:
+            self._notifications.warning("No Reddit", "Selected server has no Reddit configured")
+            return
+
+        # Fetch Reddit posts
+        self._info_panel.show_loading()
+        self._reddit_helper.start_fetching(self._current_server.reddit, limit=15, sort="hot")
+        self._notifications.info("Refreshing", f"Fetching Reddit posts for {self._current_server.name}...")
+
+    def _on_refresh_updates(self) -> None:
+        """Refresh updates data for currently selected server."""
+        if not self._current_server:
+            self._notifications.warning("No Server", "No server selected")
+            return
+
+        if not self._current_server.updates_url:
+            self._notifications.warning("No Updates", "Selected server has no updates configured")
+            return
+
+        # Fetch updates
+        self._info_panel.show_loading()
+        from pserver_manager.utils.updates_scraper import UpdatesScraper
+        from PySide6.QtCore import QThread
+
+        # Create a worker thread to fetch updates
+        def fetch_updates():
+            try:
+                scraper = UpdatesScraper()
+                updates_limit = getattr(self._current_server, 'updates_limit', 10)
+
+                if self._current_server.updates_is_rss:
+                    # RSS feed
+                    updates = scraper.fetch_rss_updates(self._current_server.updates_url, limit=updates_limit)
+                elif self._current_server.updates_forum_mode:
+                    # Forum scraping
+                    updates = scraper.fetch_forum_threads(
+                        url=self._current_server.updates_url,
+                        thread_selector=self._current_server.updates_selectors.get("item", "li"),
+                        title_selector=self._current_server.updates_selectors.get("title", "a"),
+                        link_selector=self._current_server.updates_selectors.get("link", "a"),
+                        time_selector=self._current_server.updates_selectors.get("time", "time"),
+                        preview_selector=self._current_server.updates_selectors.get("preview", ""),
+                        pagination_selector=self._current_server.updates_forum_pagination_selector,
+                        page_limit=self._current_server.updates_forum_page_limit,
+                        thread_limit=updates_limit,
+                        use_js=self._current_server.updates_use_js,
+                    )
+                else:
+                    # Regular webpage scraping
+                    updates = scraper.fetch_updates(
+                        url=self._current_server.updates_url,
+                        use_js=self._current_server.updates_use_js,
+                        item_selector=self._current_server.updates_selectors.get("item", "article"),
+                        title_selector=self._current_server.updates_selectors.get("title", "h2, h3"),
+                        link_selector=self._current_server.updates_selectors.get("link", "a"),
+                        time_selector=self._current_server.updates_selectors.get("time", "time"),
+                        preview_selector=self._current_server.updates_selectors.get("preview", "p"),
+                        limit=updates_limit,
+                        dropdown_selector=self._current_server.updates_selectors.get("dropdown"),
+                        max_dropdown_options=self._current_server.updates_max_dropdown_options,
+                    )
+
+                # Update cache with ServerUpdate objects
+                if self._current_server.id in self._server_data_cache:
+                    self._server_data_cache[self._current_server.id].updates = updates
+                    self._server_data_cache[self._current_server.id].updates_error = None
+
+                # Convert to dictionaries and display
+                updates_dict = [update.to_dict() for update in updates]
+                self._info_panel.set_updates(updates_dict)
+            except Exception as e:
+                # Update cache with error
+                if self._current_server.id in self._server_data_cache:
+                    self._server_data_cache[self._current_server.id].updates_error = str(e)
+
+                self._info_panel.set_content(f"Error loading updates:\n{str(e)}")
+
+        # Run in thread to avoid blocking UI
+        import threading
+        threading.Thread(target=fetch_updates, daemon=True).start()
+
+        self._notifications.info("Refreshing", f"Fetching updates for {self._current_server.name}...")
+
     def _on_info_panel_collapsed_changed(self, is_collapsed: bool) -> None:
         """Handle Info panel collapsed state change.
 
@@ -690,32 +843,42 @@ class MainWindow(BaseWindow):
         if not server:
             return
 
+        # Track currently selected server
+        self._current_server = server
+
         # Show/hide Info panel based on whether server has Reddit or updates defined
         has_reddit = bool(server.reddit)
         has_updates = bool(server.updates_url)
 
         if has_reddit or has_updates:
+            # Check if we have cached data for this server
+            cached_data = self._server_data_cache.get(server_id)
+
             if has_reddit:
                 self._info_panel.set_subreddit(server.reddit)
-                # Fetch Reddit posts
-                self._reddit_helper.start_fetching(server.reddit, limit=15, sort="hot")
+                # Display cached Reddit data if available, otherwise show loading
+                if cached_data and cached_data.reddit_posts is not None:
+                    self._info_panel.set_posts(cached_data.reddit_posts)
+                elif cached_data and cached_data.reddit_error:
+                    self._info_panel.set_content(f"Error loading Reddit posts:\n{cached_data.reddit_error}")
+                else:
+                    # No cached data, but don't auto-fetch
+                    self._info_panel.set_content("Reddit data not loaded. Use File > Refresh Reddit to fetch.")
             else:
                 self._info_panel.set_subreddit("")
 
             if has_updates:
                 self._info_panel.set_updates_url(server.updates_url)
-                # Fetch updates (with 24-hour cache)
-                self._fetch_updates(
-                    url=server.updates_url,
-                    is_rss=server.updates_is_rss,
-                    use_js=server.updates_use_js,
-                    selectors=server.updates_selectors,
-                    limit=10,
-                    max_dropdown_options=server.updates_max_dropdown_options,
-                    forum_mode=server.updates_forum_mode,
-                    forum_pagination_selector=server.updates_forum_pagination_selector,
-                    forum_page_limit=server.updates_forum_page_limit,
-                )
+                # Display cached updates if available, otherwise show loading
+                if cached_data and cached_data.updates is not None:
+                    # Convert ServerUpdate objects to dictionaries for display
+                    updates_dict = [update.to_dict() for update in cached_data.updates]
+                    self._info_panel.set_updates(updates_dict)
+                elif cached_data and cached_data.updates_error:
+                    self._info_panel.set_content(f"Error loading updates:\n{cached_data.updates_error}")
+                else:
+                    # No cached data, but don't auto-fetch
+                    self._info_panel.set_content("Updates not loaded. Use File > Refresh Updates to fetch.")
             else:
                 self._info_panel.set_updates_url("")
 
@@ -998,6 +1161,125 @@ class MainWindow(BaseWindow):
                 self._notifications.info("No Updates", "Your configurations are up to date")
         except Exception as e:
             self._notifications.error("Update Check Failed", f"Error: {str(e)}")
+
+    def _start_batch_scan_if_enabled(self) -> None:
+        """Start batch scanning if enabled in settings."""
+        scan_on_startup = self._config_manager.get("scanning.scan_on_startup", True)
+
+        print(f"[MainWindow] Batch scan check: scan_on_startup={scan_on_startup}")
+
+        if not scan_on_startup:
+            self._status_label.setText("Ready (auto-scan disabled)")
+            return
+
+        # Fetch data for ALL servers (not just those with scraping)
+        # We want to get ping, reddit, updates, etc. for all servers
+        servers_to_fetch = self._all_servers
+
+        print(f"[MainWindow] Starting batch fetch for {len(servers_to_fetch)} servers")
+
+        if not servers_to_fetch:
+            self._status_label.setText("Ready (no servers)")
+            return
+
+        # Start batch scan
+        max_workers = self._config_manager.get("scanning.parallel_scan_limit", 5)
+        self._status_label.setText(f"Fetching data for {len(servers_to_fetch)} servers...")
+        self._progress_bar.setVisible(True)
+        self._progress_bar.setValue(0)
+
+        self._batch_scanner.start_batch_fetch(servers_to_fetch, max_workers)
+
+    def _on_scan_progress(self, current: int, total: int, server_name: str) -> None:
+        """Handle scan progress update.
+
+        Args:
+            current: Current scan number
+            total: Total scans
+            server_name: Name of server being scanned
+        """
+        progress = int((current / total) * 100)
+        self._progress_bar.setValue(progress)
+        self._progress_bar.setFormat(f"{current}/{total} - {server_name}")
+        self._status_label.setText(f"Scanning servers ({current}/{total})...")
+
+    def _on_server_data_complete(self, server_id: str, result: object) -> None:
+        """Handle individual server data fetch completion.
+
+        Args:
+            server_id: Server ID that had data fetched
+            result: ServerDataResult object
+        """
+        print(f"[MainWindow] Data complete for {server_id}")
+        print(f"  - scrape_success: {result.scrape_success}, data: {result.scrape_data}")
+        print(f"  - ping_success: {result.ping_success}, ping_ms: {result.ping_ms}")
+        print(f"  - reddit_posts: {len(result.reddit_posts) if result.reddit_posts else 'None'}")
+        print(f"  - updates: {len(result.updates) if result.updates else 'None'}")
+
+        # Store result for later use (acts as cache)
+        self._server_data_cache[server_id] = result
+
+        # Update the server table immediately if scraping data is available
+        if result.scrape_success and result.scrape_data:
+            print(f"[MainWindow] Updating table for {server_id}")
+            self._server_table.update_server_data(server_id, result.scrape_data)
+
+        # Update ping if available
+        if result.ping_success:
+            print(f"[MainWindow] Updating ping for {server_id}: {result.ping_ms}ms")
+            # Find server and update ping_ms
+            for server in self._all_servers:
+                if server.id == server_id:
+                    server.ping_ms = result.ping_ms
+
+                    # If worlds data was updated, apply it to the server
+                    if result.worlds_data is not None:
+                        print(f"[MainWindow] Updating {len(result.worlds_data)} worlds data for {server_id}")
+                        # The server's data dict should have a 'worlds' key
+                        if 'worlds' in server.data:
+                            server.data['worlds'] = result.worlds_data
+                    break
+            self._server_table._refresh_table()
+
+    def _on_batch_scan_finished(self, all_results: dict) -> None:
+        """Handle batch data fetch completion.
+
+        Args:
+            all_results: Dictionary of all server data results
+        """
+        print(f"[MainWindow] Batch scan finished with {len(all_results)} results")
+
+        total_count = len(all_results)
+        scrape_success = sum(1 for r in all_results.values() if r.scrape_success)
+        ping_success = sum(1 for r in all_results.values() if r.ping_success)
+        reddit_success = sum(1 for r in all_results.values() if r.reddit_posts is not None)
+        updates_success = sum(1 for r in all_results.values() if r.updates is not None)
+
+        print(f"[MainWindow] Results summary:")
+        print(f"  - Scrape: {scrape_success}/{total_count}")
+        print(f"  - Ping: {ping_success}/{total_count}")
+        print(f"  - Reddit: {reddit_success}/{total_count}")
+        print(f"  - Updates: {updates_success}/{total_count}")
+
+        self._progress_bar.setVisible(False)
+        self._status_label.setText(
+            f"Data fetch complete: {scrape_success}/{total_count} scraped, {ping_success}/{total_count} pinged"
+        )
+
+        # Hide status after a few seconds
+        from PySide6.QtCore import QTimer
+
+        QTimer.singleShot(5000, lambda: self._status_label.setText("Ready"))
+
+    def _on_scan_error(self, error: str) -> None:
+        """Handle scan error.
+
+        Args:
+            error: Error message
+        """
+        self._progress_bar.setVisible(False)
+        self._status_label.setText(f"Scan error: {error}")
+        print(f"Batch scan error: {error}")
 
     def _reload_themes(self) -> None:
         """Reload themes after updates."""

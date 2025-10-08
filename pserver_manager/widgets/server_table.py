@@ -764,3 +764,28 @@ class ServerTable(VBox):
 
         # Refresh table to show updated counts
         self._refresh_table()
+
+    def update_server_data(self, server_id: str, data: dict) -> None:
+        """Update a single server's data from scan results.
+
+        Args:
+            server_id: Server ID to update
+            data: Dictionary with scan data (total, alliance_count, horde_count, uptime)
+        """
+        # Find the server
+        server = next((s for s in self._servers if s.id == server_id), None)
+        if not server:
+            return
+
+        # Update server data
+        if 'total' in data:
+            server.players = data['total']
+        if 'alliance_count' in data:
+            server.alliance_count = data['alliance_count']
+        if 'horde_count' in data:
+            server.horde_count = data['horde_count']
+        if 'uptime' in data:
+            server.uptime = data['uptime']
+
+        # Refresh table to show updated data
+        self._refresh_table()

@@ -323,6 +323,20 @@ class PreferencesDialog(QDialog):
                 field_type="bool",
                 default=True,
             ),
+            ConfigFieldDescriptor(
+                key="scanning.scan_on_startup",
+                label="Scan Servers on Startup",
+                field_type="bool",
+                default=True,
+            ),
+            ConfigFieldDescriptor(
+                key="scanning.parallel_scan_limit",
+                label="Parallel Scan Limit",
+                field_type="int",
+                default=5,
+                min_value=1,
+                max_value=20,
+            ),
         ]
 
         self.application_editor = ConfigEditorWidget(
