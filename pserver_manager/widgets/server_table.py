@@ -180,13 +180,12 @@ class ServerTable(VBox):
         self._table.setColumnCount(len(columns))
         self._table.setHeaderLabels([col.label for col in columns])
 
-        # Configure column widths
+        # Configure column widths - use Interactive for all columns initially
+        # We'll set proper sizing after content is loaded
         header = self._table.header()
-        for i, col in enumerate(columns):
-            if col.width == "stretch":
-                header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
-            else:
-                header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
+        header.setStretchLastSection(False)
+        for i in range(len(columns)):
+            header.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
 
     def set_servers(self, servers: list[ServerDefinition]) -> None:
         """Set the list of servers to display.
@@ -232,6 +231,27 @@ class ServerTable(VBox):
 
         # Re-enable sorting after all items are added
         self._table.setSortingEnabled(True)
+
+        # Resize all columns to fit their content
+        header = self._table.header()
+        stretch_column_idx = -1
+
+        for i, col in enumerate(self._columns):
+            self._table.resizeColumnToContents(i)
+            if col.width == "stretch":
+                stretch_column_idx = i
+
+        # If there's a stretch column, give it any remaining space
+        if stretch_column_idx >= 0:
+            # Calculate total width used by all columns
+            total_width = sum(header.sectionSize(i) for i in range(len(self._columns)))
+            available_width = self._table.viewport().width()
+
+            # If there's extra space, give it to the stretch column
+            if available_width > total_width:
+                extra_width = available_width - total_width
+                current_width = header.sectionSize(stretch_column_idx)
+                header.resizeSection(stretch_column_idx, current_width + extra_width)
 
     def _populate_server_item(self, item: QTreeWidgetItem, server: ServerDefinition, is_parent: bool = False) -> None:
         """Populate a tree item with server data.
