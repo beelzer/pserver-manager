@@ -24,7 +24,7 @@ class InfoPanel(VBox):
         Args:
             parent: Parent widget
         """
-        super().__init__(spacing=2, margins=(10, 5, 10, 10), parent=parent)
+        super().__init__(spacing=2, margins=(0, 5, 0, 10), parent=parent)
 
         self._subreddit = ""
         self._updates_url = ""
@@ -66,7 +66,7 @@ class InfoPanel(VBox):
         Returns:
             Reddit tab widget
         """
-        tab = VBox(spacing=15, margins=(0, 5, 0, 0))
+        tab = VBox(spacing=15, margins=(10, 5, 0, 0))
 
         # Subreddit label
         self._subreddit_label = QLabel("r/wowservers")
@@ -99,7 +99,7 @@ class InfoPanel(VBox):
         Returns:
             Updates tab widget
         """
-        tab = VBox(spacing=15, margins=(0, 5, 0, 0))
+        tab = VBox(spacing=15, margins=(10, 5, 0, 0))
 
         # Updates label
         self._updates_label = QLabel("Server Updates")
