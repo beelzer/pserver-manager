@@ -43,6 +43,10 @@ class GameDefinition:
         self.updates_is_rss: bool = data.get("updates_is_rss", False)
         self.updates_use_js: bool = data.get("updates_use_js", False)
         self.updates_selectors: dict[str, str] = data.get("updates_selectors", {})
+        self.updates_max_dropdown_options: int | None = data.get("updates_max_dropdown_options")
+        self.updates_forum_mode: bool = data.get("updates_forum_mode", False)
+        self.updates_forum_pagination_selector: str = data.get("updates_forum_pagination_selector", ".ipsPagination_next")
+        self.updates_forum_page_limit: int = data.get("updates_forum_page_limit", 1)
         self.versions: list[GameVersion] = [
             GameVersion(
                 id=v["id"],
@@ -108,6 +112,10 @@ class ServerDefinition:
         self.updates_is_rss: bool = data.get("updates_is_rss", False)
         self.updates_use_js: bool = data.get("updates_use_js", False)
         self.updates_selectors: dict[str, str] = data.get("updates_selectors", {})
+        self.updates_max_dropdown_options: int | None = data.get("updates_max_dropdown_options")
+        self.updates_forum_mode: bool = data.get("updates_forum_mode", False)
+        self.updates_forum_pagination_selector: str = data.get("updates_forum_pagination_selector", ".ipsPagination_next")
+        self.updates_forum_page_limit: int = data.get("updates_forum_page_limit", 1)
         self.ping_ms: int = -1  # -1 means not pinged yet
 
     def to_server(self) -> Server:

@@ -13,6 +13,15 @@ rates: Custom
 population: Unknown
 language: English
 description: A RuneScape private server with semi-custom content
+updates_url: https://rxps.io/forums/index.php?app=forums&module=forums&controller=forums&id=2
+updates_forum_mode: true
+updates_forum_page_limit: 3
+updates_selectors:
+  item: "li[data-rowid]"
+  title: ".ipsDataItem_title a"
+  link: ".ipsDataItem_title a"
+  time: "time"
+  preview: ""
 downloads:
   - name: Windows (64-bit)
     url: https://d2n1q79xme98rn.cloudfront.net/rx_live/RX%20Setup.exe

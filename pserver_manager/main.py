@@ -440,7 +440,10 @@ class MainWindow(BaseWindow):
                     use_js=game_def.updates_use_js,
                     selectors=game_def.updates_selectors,
                     limit=10,
-                    max_dropdown_options=getattr(game_def, 'updates_max_dropdown_options', None),
+                    max_dropdown_options=game_def.updates_max_dropdown_options,
+                    forum_mode=game_def.updates_forum_mode,
+                    forum_pagination_selector=game_def.updates_forum_pagination_selector,
+                    forum_page_limit=game_def.updates_forum_page_limit,
                 )
             else:
                 self._info_panel.set_updates_url("")
@@ -496,7 +499,10 @@ class MainWindow(BaseWindow):
                     use_js=game_def.updates_use_js,
                     selectors=game_def.updates_selectors,
                     limit=10,
-                    max_dropdown_options=getattr(game_def, 'updates_max_dropdown_options', None),
+                    max_dropdown_options=game_def.updates_max_dropdown_options,
+                    forum_mode=game_def.updates_forum_mode,
+                    forum_pagination_selector=game_def.updates_forum_pagination_selector,
+                    forum_page_limit=game_def.updates_forum_page_limit,
                 )
             else:
                 self._info_panel.set_updates_url("")
@@ -572,7 +578,19 @@ class MainWindow(BaseWindow):
 
         return elapsed_hours >= self._updates_cache_hours
 
-    def _fetch_updates(self, url: str, is_rss: bool, use_js: bool, selectors: dict, limit: int = 10, max_dropdown_options: int | None = None, force: bool = False) -> None:
+    def _fetch_updates(
+        self,
+        url: str,
+        is_rss: bool,
+        use_js: bool,
+        selectors: dict,
+        limit: int = 10,
+        max_dropdown_options: int | None = None,
+        forum_mode: bool = False,
+        forum_pagination_selector: str = ".ipsPagination_next",
+        forum_page_limit: int = 1,
+        force: bool = False,
+    ) -> None:
         """Fetch updates with cache checking.
 
         Args:
@@ -582,6 +600,9 @@ class MainWindow(BaseWindow):
             selectors: CSS selectors dict
             limit: Number of updates to fetch
             max_dropdown_options: Max dropdown options for dropdown-based changelogs
+            forum_mode: Whether to scrape forum threads (enables pagination)
+            forum_pagination_selector: CSS selector for next page link in forum mode
+            forum_page_limit: Maximum number of forum pages to scrape
             force: If True, bypass cache and force fetch
         """
         import time
@@ -601,6 +622,9 @@ class MainWindow(BaseWindow):
             selectors=selectors,
             limit=limit,
             max_dropdown_options=max_dropdown_options,
+            forum_mode=forum_mode,
+            forum_pagination_selector=forum_pagination_selector,
+            forum_page_limit=forum_page_limit,
         )
 
         # Update last fetch time
@@ -618,6 +642,10 @@ class MainWindow(BaseWindow):
                     use_js=self._current_game.updates_use_js,
                     selectors=self._current_game.updates_selectors,
                     limit=10,
+                    max_dropdown_options=self._current_game.updates_max_dropdown_options,
+                    forum_mode=self._current_game.updates_forum_mode,
+                    forum_pagination_selector=self._current_game.updates_forum_pagination_selector,
+                    forum_page_limit=self._current_game.updates_forum_page_limit,
                     force=True,
                 )
                 self._notifications.info("Refreshing", "Fetching latest updates...")
@@ -683,7 +711,10 @@ class MainWindow(BaseWindow):
                     use_js=server.updates_use_js,
                     selectors=server.updates_selectors,
                     limit=10,
-                    max_dropdown_options=getattr(server, 'updates_max_dropdown_options', None),
+                    max_dropdown_options=server.updates_max_dropdown_options,
+                    forum_mode=server.updates_forum_mode,
+                    forum_pagination_selector=server.updates_forum_pagination_selector,
+                    forum_page_limit=server.updates_forum_page_limit,
                 )
             else:
                 self._info_panel.set_updates_url("")

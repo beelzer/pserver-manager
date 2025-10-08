@@ -309,6 +309,9 @@ class UpdatesScraper:
         use_js: bool = False,
         dropdown_selector: str | None = None,
         max_dropdown_options: int | None = None,
+        forum_mode: bool = False,
+        forum_pagination_selector: str = ".ipsPagination_next",
+        forum_page_limit: int = 1,
     ) -> list[ServerUpdate]:
         """Fetch updates from a website.
 
@@ -323,10 +326,28 @@ class UpdatesScraper:
             use_js: Whether to use Playwright for JavaScript-rendered pages
             dropdown_selector: CSS selector for dropdown (enables dropdown mode)
             max_dropdown_options: Max number of dropdown options to process
+            forum_mode: Whether to scrape forum threads (enables pagination)
+            forum_pagination_selector: CSS selector for next page link in forum mode
+            forum_page_limit: Maximum number of forum pages to scrape
 
         Returns:
             List of ServerUpdate objects
         """
+        # Forum mode
+        if forum_mode:
+            return self.fetch_forum_threads(
+                url,
+                thread_selector=item_selector,
+                title_selector=title_selector,
+                link_selector=link_selector,
+                time_selector=time_selector,
+                preview_selector=preview_selector,
+                pagination_selector=forum_pagination_selector,
+                page_limit=forum_page_limit,
+                thread_limit=limit,
+                use_js=use_js,
+            )
+
         # Dropdown mode requires JavaScript
         if dropdown_selector:
             return self.fetch_updates_with_dropdown(
@@ -356,6 +377,147 @@ class UpdatesScraper:
         except Exception as e:
             print(f"Error parsing updates: {e}")
             return []
+
+    def fetch_forum_threads(
+        self,
+        url: str,
+        thread_selector: str = "li",
+        title_selector: str = ".ipsDataItem_title a",
+        link_selector: str = ".ipsDataItem_title a",
+        time_selector: str = "time",
+        preview_selector: str = "",
+        pagination_selector: str = ".ipsPagination_next",
+        page_limit: int = 1,
+        thread_limit: int = 20,
+        use_js: bool = False,
+    ) -> list[ServerUpdate]:
+        """Fetch updates from forum threads across multiple pages.
+
+        Args:
+            url: Forum URL to scrape
+            thread_selector: CSS selector for thread container/item
+            title_selector: CSS selector for thread title
+            link_selector: CSS selector for thread link
+            time_selector: CSS selector for thread date/time
+            preview_selector: CSS selector for thread preview/excerpt (optional)
+            pagination_selector: CSS selector for next page link
+            page_limit: Maximum number of pages to scrape
+            thread_limit: Maximum total number of threads to return
+            use_js: Whether to use Playwright for JavaScript-rendered forums
+
+        Returns:
+            List of ServerUpdate objects representing forum threads
+        """
+        all_threads = []
+        current_url = url
+        pages_scraped = 0
+
+        while current_url and pages_scraped < page_limit and len(all_threads) < thread_limit:
+            try:
+                print(f"Scraping forum page {pages_scraped + 1}: {current_url}")
+
+                if use_js:
+                    if not PLAYWRIGHT_AVAILABLE:
+                        print("Playwright not available. Install with: pip install playwright")
+                        break
+
+                    with sync_playwright() as p:
+                        browser = p.chromium.launch(headless=True)
+                        page = browser.new_page()
+                        page.goto(current_url, wait_until='networkidle', timeout=15000)
+                        page.wait_for_timeout(2000)
+                        content = page.content()
+                        browser.close()
+                        soup = BeautifulSoup(content, 'html.parser')
+                else:
+                    response = self.session.get(current_url, timeout=10)
+                    response.raise_for_status()
+                    soup = BeautifulSoup(response.content, "html.parser")
+
+                # Extract threads from current page
+                threads = soup.select(thread_selector)
+                print(f"Found {len(threads)} threads on page {pages_scraped + 1}")
+
+                for thread in threads:
+                    if len(all_threads) >= thread_limit:
+                        break
+
+                    try:
+                        # Extract title
+                        title_elem = thread.select_one(title_selector) if title_selector else None
+                        title = title_elem.get_text(strip=True) if title_elem else "Untitled"
+
+                        # Extract link
+                        link = ""
+                        if link_selector:
+                            link_elem = thread.select_one(link_selector)
+                            if link_elem and link_elem.get("href"):
+                                link = link_elem["href"]
+                                # Make absolute URL if relative
+                                if link.startswith("/"):
+                                    url_parts = url.split('/')
+                                    link = f"{url_parts[0]}//{url_parts[2]}{link}"
+                                elif not link.startswith("http"):
+                                    link = f"{url.rstrip('/')}/{link.lstrip('/')}"
+
+                        # Extract time
+                        time_elem = thread.select_one(time_selector) if time_selector else None
+                        time_str = "Unknown time"
+                        if time_elem:
+                            # Try to get datetime attribute first, then text content
+                            time_str = time_elem.get("datetime", time_elem.get_text(strip=True))
+
+                        # Extract preview
+                        preview = ""
+                        if preview_selector:
+                            preview_elem = thread.select_one(preview_selector)
+                            preview = preview_elem.get_text(strip=True) if preview_elem else ""
+
+                        all_threads.append(
+                            ServerUpdate(
+                                title=title,
+                                url=link or current_url,
+                                time=time_str,
+                                preview=preview,
+                            )
+                        )
+                    except Exception as e:
+                        print(f"Error parsing forum thread: {e}")
+                        continue
+
+                pages_scraped += 1
+
+                # Check if we've reached the thread limit
+                if len(all_threads) >= thread_limit:
+                    break
+
+                # Find next page link
+                if pagination_selector:
+                    next_link = soup.select_one(pagination_selector)
+                    if next_link and next_link.get("href"):
+                        next_url = next_link["href"]
+                        # Make absolute URL if relative
+                        if next_url.startswith("/"):
+                            url_parts = url.split('/')
+                            current_url = f"{url_parts[0]}//{url_parts[2]}{next_url}"
+                        elif not next_url.startswith("http"):
+                            current_url = f"{url.rstrip('/')}/{next_url.lstrip('/')}"
+                        else:
+                            current_url = next_url
+                    else:
+                        current_url = None  # No more pages
+                else:
+                    current_url = None  # Pagination not configured
+
+            except requests.RequestException as e:
+                print(f"Error fetching forum page: {e}")
+                break
+            except Exception as e:
+                print(f"Error parsing forum page: {e}")
+                break
+
+        print(f"Scraped {len(all_threads)} total threads from {pages_scraped} pages")
+        return all_threads[:thread_limit]
 
     def fetch_rss_updates(self, rss_url: str, limit: int = 10) -> list[ServerUpdate]:
         """Fetch updates from an RSS feed.

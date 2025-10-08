@@ -27,6 +27,9 @@ class UpdatesWorker(QObject):
         limit: int = 10,
         dropdown_selector: str | None = None,
         max_dropdown_options: int | None = None,
+        forum_mode: bool = False,
+        forum_pagination_selector: str = ".ipsPagination_next",
+        forum_page_limit: int = 1,
     ):
         """Initialize worker.
 
@@ -41,6 +44,9 @@ class UpdatesWorker(QObject):
             limit: Number of updates to fetch
             dropdown_selector: CSS selector for dropdown (enables dropdown mode)
             max_dropdown_options: Max number of dropdown options to process
+            forum_mode: Whether to scrape forum threads (enables pagination)
+            forum_pagination_selector: CSS selector for next page link in forum mode
+            forum_page_limit: Maximum number of forum pages to scrape
         """
         super().__init__()
         self.url = url
@@ -54,6 +60,9 @@ class UpdatesWorker(QObject):
         self.limit = limit
         self.dropdown_selector = dropdown_selector
         self.max_dropdown_options = max_dropdown_options
+        self.forum_mode = forum_mode
+        self.forum_pagination_selector = forum_pagination_selector
+        self.forum_page_limit = forum_page_limit
         self._cancelled = False
 
     def run(self):
@@ -75,6 +84,9 @@ class UpdatesWorker(QObject):
                     use_js=self.use_js,
                     dropdown_selector=self.dropdown_selector,
                     max_dropdown_options=self.max_dropdown_options,
+                    forum_mode=self.forum_mode,
+                    forum_pagination_selector=self.forum_pagination_selector,
+                    forum_page_limit=self.forum_page_limit,
                 )
 
             if not self._cancelled:
@@ -112,6 +124,9 @@ class UpdatesFetchHelper(QObject):
         selectors: dict | None = None,
         limit: int = 10,
         max_dropdown_options: int | None = None,
+        forum_mode: bool = False,
+        forum_pagination_selector: str = ".ipsPagination_next",
+        forum_page_limit: int = 1,
     ) -> None:
         """Start fetching updates in background.
 
@@ -122,6 +137,9 @@ class UpdatesFetchHelper(QObject):
             selectors: Dictionary of CSS selectors for scraping
             limit: Number of updates to fetch
             max_dropdown_options: Max number of dropdown options to process
+            forum_mode: Whether to scrape forum threads (enables pagination)
+            forum_pagination_selector: CSS selector for next page link in forum mode
+            forum_page_limit: Maximum number of forum pages to scrape
         """
         # Clean up previous thread
         if self.thread is not None:
@@ -144,6 +162,9 @@ class UpdatesFetchHelper(QObject):
             limit=limit,
             dropdown_selector=selectors.get("dropdown"),
             max_dropdown_options=max_dropdown_options,
+            forum_mode=forum_mode,
+            forum_pagination_selector=forum_pagination_selector,
+            forum_page_limit=forum_page_limit,
         )
         self.thread = QThread()
 
