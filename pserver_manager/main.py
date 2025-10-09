@@ -628,7 +628,6 @@ class MainWindow(BaseWindow):
         label = QLabel(f"Error loading updates:\n{error}")
         label.setWordWrap(True)
         self._info_panel._updates_cards_layout.insertWidget(0, label)
-        self._info_panel.hide_loading()
 
     def _should_fetch_updates(self, url: str) -> bool:
         """Check if we should fetch updates based on cache time.
@@ -706,7 +705,6 @@ class MainWindow(BaseWindow):
         # Check what's currently selected
         if self._current_game:
             if self._current_game.updates_url:
-                self._info_panel.show_loading()
                 self._fetch_updates(
                     url=self._current_game.updates_url,
                     is_rss=self._current_game.updates_is_rss,
@@ -734,7 +732,6 @@ class MainWindow(BaseWindow):
             return
 
         # Fetch Reddit posts
-        self._info_panel.show_loading()
         self._reddit_helper.start_fetching(self._current_server.reddit, limit=15, sort="hot")
         self._notifications.info("Refreshing", f"Fetching Reddit posts for {self._current_server.name}...")
 
@@ -749,7 +746,6 @@ class MainWindow(BaseWindow):
             return
 
         # Fetch updates
-        self._info_panel.show_loading()
         from pserver_manager.utils.updates_scraper import UpdatesScraper
         from PySide6.QtCore import QThread
 
@@ -853,11 +849,15 @@ class MainWindow(BaseWindow):
         # Track currently selected server
         self._current_server = server
 
+        # Always show Info panel for all servers (Info tab is always present)
+        self._info_panel.set_server_info(server)
+
         # Show/hide Info panel based on whether server has Reddit or updates defined
         has_reddit = bool(server.reddit)
         has_updates = bool(server.updates_url)
 
-        if has_reddit or has_updates:
+        # Panel should always be visible since Info tab is always shown
+        if True:  # Always show for now
             # Check if we have cached data for this server
             cached_data = self._server_data_cache.get(server_id)
 
@@ -889,10 +889,10 @@ class MainWindow(BaseWindow):
             else:
                 self._info_panel.set_updates_url("")
 
-            # Show menubar button and expand panel
+            # Show menubar button and panel (Info tab is always present)
             self._info_menubar_button.show()
-            if self._info_panel.is_collapsed():
-                self._info_panel.expand()
+            self._info_panel.show()
+            self._info_panel._is_collapsed = False
         else:
             # No Reddit or updates for this server - hide panel
             self._info_menubar_button.hide()

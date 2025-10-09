@@ -31,11 +31,16 @@ class InfoPanel(VBox):
         self._is_collapsed = False
         self._current_posts = []  # Store posts for re-rendering on theme change
         self._current_updates = []  # Store updates for re-rendering on theme change
+        self._current_server = None  # Store current server for re-rendering
 
         # Create tab widget with clean styling
         self._tab_widget = QTabWidget()
         self._tab_widget.setDocumentMode(False)
         self._update_tab_styling()
+
+        # Create Info tab (always shown, first tab)
+        self._info_tab = self._create_info_tab()
+        self._info_tab_index = self._tab_widget.addTab(self._info_tab, "Info")
 
         # Create Reddit tab
         self._reddit_tab = self._create_reddit_tab()
@@ -50,6 +55,29 @@ class InfoPanel(VBox):
         # Set initial minimum and maximum width to constrain panel
         self.setMinimumWidth(400)
         self.setMaximumWidth(600)
+
+    def _create_info_tab(self) -> QWidget:
+        """Create the Info tab content.
+
+        Returns:
+            Info tab widget
+        """
+        # Scroll area for info content
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setMinimumWidth(300)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        # Container widget for info content
+        self._info_container = QWidget()
+        self._info_layout = QVBoxLayout(self._info_container)
+        self._info_layout.setSpacing(16)
+        self._info_layout.setContentsMargins(10, 10, 10, 10)
+        self._info_layout.addStretch()
+
+        scroll_area.setWidget(self._info_container)
+        return scroll_area
 
     def _create_reddit_tab(self) -> QWidget:
         """Create the Reddit tab content.
@@ -151,10 +179,246 @@ class InfoPanel(VBox):
         # Re-render content and update styling when palette changes (theme switch)
         if event.type() == QEvent.Type.PaletteChange:
             self._update_tab_styling()
+            if self._current_server:
+                self.set_server_info(self._current_server)
             if self._current_posts:
                 self.set_posts(self._current_posts)
             if self._current_updates:
                 self.set_updates(self._current_updates)
+
+    def set_server_info(self, server) -> None:
+        """Set server information to display in Info tab.
+
+        Args:
+            server: ServerDefinition object
+        """
+        # Store server for re-rendering on theme change
+        self._current_server = server
+
+        # Clear existing content
+        while self._info_layout.count() > 1:  # Keep the stretch
+            item = self._info_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        if not server:
+            return
+
+        # Get theme colors
+        palette = self.palette()
+        window_color = palette.color(QPalette.ColorRole.Window)
+        is_dark_theme = window_color.lightness() < 128
+        highlight_color = palette.color(QPalette.ColorRole.Highlight).name()
+
+        # Card background
+        card_bg_color = palette.color(QPalette.ColorRole.Window)
+        if is_dark_theme:
+            card_bg_color = card_bg_color.lighter(125)
+        else:
+            card_bg_color = card_bg_color.darker(110)
+        card_bg = card_bg_color.name()
+
+        # Border color
+        border_color = palette.color(QPalette.ColorRole.Mid)
+        border_color.setAlpha(80)
+        border_hex = border_color.name(format=border_color.NameFormat.HexArgb)
+
+        # Server name header
+        name_label = QLabel(html.escape(server.name))
+        name_label.setStyleSheet("font-weight: bold; font-size: 18px;")
+        name_label.setWordWrap(True)
+        self._info_layout.insertWidget(self._info_layout.count() - 1, name_label)
+
+        # Description if available
+        if server.description:
+            desc_label = QLabel(html.escape(server.description))
+            desc_label.setWordWrap(True)
+            desc_label.setStyleSheet("font-size: 14px; opacity: 0.8;")
+            self._info_layout.insertWidget(self._info_layout.count() - 1, desc_label)
+
+        # Basic info card
+        basic_card = Card(elevated=True, padding=14)
+        basic_card.setMaximumWidth(580)
+        basic_card.setStyleSheet(f"Card {{ background-color: {card_bg}; border: 1px solid {border_hex}; border-radius: 6px; }}")
+
+        # Status
+        status_row = HBox(spacing=8)
+        status_label = QLabel("Status:")
+        status_label.setStyleSheet("font-weight: 600;")
+        status_row.add_widget(status_label)
+
+        status_value = QLabel(server.status.value.title())
+        if server.status.value == "online":
+            status_value.setStyleSheet("color: #4CAF50; font-weight: 500;")
+        elif server.status.value == "offline":
+            status_value.setStyleSheet("color: #F44336; font-weight: 500;")
+        else:
+            status_value.setStyleSheet("opacity: 0.7;")
+        status_row.add_widget(status_value)
+        status_row.add_stretch()
+        basic_card.add_widget(status_row)
+
+        # Players
+        if server.players >= 0 or server.max_players > 0:
+            players_row = HBox(spacing=8)
+            players_label = QLabel("Players:")
+            players_label.setStyleSheet("font-weight: 600;")
+            players_row.add_widget(players_label)
+
+            players_text = f"{server.players}" if server.players >= 0 else "?"
+            if server.max_players > 0:
+                players_text += f" / {server.max_players}"
+            players_value = QLabel(players_text)
+            players_value.setStyleSheet("opacity: 0.8;")
+            players_row.add_widget(players_value)
+            players_row.add_stretch()
+            basic_card.add_widget(players_row)
+
+        # Faction counts if available
+        if server.alliance_count is not None or server.horde_count is not None:
+            faction_row = HBox(spacing=8)
+            faction_label = QLabel("Factions:")
+            faction_label.setStyleSheet("font-weight: 600;")
+            faction_row.add_widget(faction_label)
+
+            faction_parts = []
+            if server.alliance_count is not None:
+                faction_parts.append(f"Alliance: {server.alliance_count}")
+            if server.horde_count is not None:
+                faction_parts.append(f"Horde: {server.horde_count}")
+            faction_value = QLabel(" | ".join(faction_parts))
+            faction_value.setStyleSheet("opacity: 0.8;")
+            faction_row.add_widget(faction_value)
+            faction_row.add_stretch()
+            basic_card.add_widget(faction_row)
+
+        # Uptime
+        if server.uptime and server.uptime != "-":
+            uptime_row = HBox(spacing=8)
+            uptime_label = QLabel("Uptime:")
+            uptime_label.setStyleSheet("font-weight: 600;")
+            uptime_row.add_widget(uptime_label)
+            uptime_value = QLabel(server.uptime)
+            uptime_value.setStyleSheet("opacity: 0.8;")
+            uptime_row.add_widget(uptime_value)
+            uptime_row.add_stretch()
+            basic_card.add_widget(uptime_row)
+
+        # Version
+        version_row = HBox(spacing=8)
+        version_label = QLabel("Version:")
+        version_label.setStyleSheet("font-weight: 600;")
+        version_row.add_widget(version_label)
+        version_value = QLabel(server.version_id)
+        version_value.setStyleSheet("opacity: 0.8;")
+        version_row.add_widget(version_value)
+        version_row.add_stretch()
+        basic_card.add_widget(version_row)
+
+        self._info_layout.insertWidget(self._info_layout.count() - 1, basic_card)
+
+        # Connection info card (if available)
+        if server.host or server.patchlist:
+            conn_card = Card(elevated=True, padding=14)
+            conn_card.setMaximumWidth(580)
+            conn_card.setStyleSheet(f"Card {{ background-color: {card_bg}; border: 1px solid {border_hex}; border-radius: 6px; }}")
+
+            conn_header = QLabel("Connection")
+            conn_header.setStyleSheet("font-weight: bold; font-size: 16px;")
+            conn_card.add_widget(conn_header)
+
+            if server.host:
+                host_row = HBox(spacing=8)
+                host_label = QLabel("Host:")
+                host_label.setStyleSheet("font-weight: 600;")
+                host_row.add_widget(host_label)
+                host_value = QLabel(server.host)
+                host_value.setStyleSheet("font-family: monospace; opacity: 0.8;")
+                host_value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                host_row.add_widget(host_value)
+                host_row.add_stretch()
+                conn_card.add_widget(host_row)
+
+            if server.patchlist:
+                patch_row = HBox(spacing=8)
+                patch_label = QLabel("Patchlist:")
+                patch_label.setStyleSheet("font-weight: 600;")
+                patch_row.add_widget(patch_label)
+                patch_value = QLabel(f'<a href="{server.patchlist}" style="color: {highlight_color};">View</a>')
+                patch_value.setTextFormat(Qt.TextFormat.RichText)
+                patch_value.setOpenExternalLinks(True)
+                patch_value.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+                patch_row.add_widget(patch_value)
+                patch_row.add_stretch()
+                conn_card.add_widget(patch_row)
+
+            self._info_layout.insertWidget(self._info_layout.count() - 1, conn_card)
+
+        # Links card (if available)
+        has_links = any([
+            server.get_field("website", ""),
+            server.get_field("discord", ""),
+            server.get_field("register_url", ""),
+            server.get_field("login_url", ""),
+            server.get_field("download_url", "")
+        ])
+
+        if has_links:
+            links_card = Card(elevated=True, padding=14)
+            links_card.setMaximumWidth(580)
+            links_card.setStyleSheet(f"Card {{ background-color: {card_bg}; border: 1px solid {border_hex}; border-radius: 6px; }}")
+
+            links_header = QLabel("Links")
+            links_header.setStyleSheet("font-weight: bold; font-size: 16px;")
+            links_card.add_widget(links_header)
+
+            links = [
+                ("Website", server.get_field("website", "")),
+                ("Discord", server.get_field("discord", "")),
+                ("Register", server.get_field("register_url", "")),
+                ("Login", server.get_field("login_url", "")),
+                ("Download", server.get_field("download_url", ""))
+            ]
+
+            for link_name, link_url in links:
+                if link_url:
+                    link_row = HBox(spacing=8)
+                    link_label = QLabel(f"{link_name}:")
+                    link_label.setStyleSheet("font-weight: 600;")
+                    link_row.add_widget(link_label)
+                    link_value = QLabel(f'<a href="{link_url}" style="color: {highlight_color};">Open</a>')
+                    link_value.setTextFormat(Qt.TextFormat.RichText)
+                    link_value.setOpenExternalLinks(True)
+                    link_value.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+                    link_row.add_widget(link_value)
+                    link_row.add_stretch()
+                    links_card.add_widget(link_row)
+
+            self._info_layout.insertWidget(self._info_layout.count() - 1, links_card)
+
+        # Rates card (if available)
+        rates_data = server.data.get("rates", {})
+        if rates_data and isinstance(rates_data, dict):
+            rates_card = Card(elevated=True, padding=14)
+            rates_card.setMaximumWidth(580)
+            rates_card.setStyleSheet(f"Card {{ background-color: {card_bg}; border: 1px solid {border_hex}; border-radius: 6px; }}")
+
+            rates_header = QLabel("Rates")
+            rates_header.setStyleSheet("font-weight: bold; font-size: 16px;")
+            rates_card.add_widget(rates_header)
+
+            for rate_key, rate_value in rates_data.items():
+                rate_row = HBox(spacing=8)
+                rate_label = QLabel(f"{rate_key.replace('_', ' ').title()}:")
+                rate_label.setStyleSheet("font-weight: 600;")
+                rate_row.add_widget(rate_label)
+                rate_val = QLabel(str(rate_value))
+                rate_val.setStyleSheet("opacity: 0.8;")
+                rate_row.add_widget(rate_val)
+                rate_row.add_stretch()
+                rates_card.add_widget(rate_row)
+
+            self._info_layout.insertWidget(self._info_layout.count() - 1, rates_card)
 
     def set_subreddit(self, subreddit: str) -> None:
         """Set the subreddit to display.
@@ -167,12 +431,9 @@ class InfoPanel(VBox):
             self._subreddit_label.setText(f"r/{subreddit}")
             self._clear_reddit_cards()
             self._ensure_reddit_tab_visible()
-            self.show()
         else:
             self._remove_reddit_tab()
-            # Hide panel if no tabs are visible
-            if self._tab_widget.count() == 0:
-                self.hide()
+            # Don't hide panel - Info tab is always present
 
     def set_updates_url(self, updates_url: str) -> None:
         """Set the updates URL to fetch from.
@@ -185,12 +446,9 @@ class InfoPanel(VBox):
             self._updates_label.setText("Server Updates")
             self._clear_updates_cards()
             self._ensure_updates_tab_visible()
-            self.show()
         else:
             self._remove_updates_tab()
-            # Hide panel if no tabs are visible
-            if self._tab_widget.count() == 0:
-                self.hide()
+            # Don't hide panel - Info tab is always present
 
     def _ensure_reddit_tab_visible(self) -> None:
         """Ensure Reddit tab is visible in the tab widget."""
