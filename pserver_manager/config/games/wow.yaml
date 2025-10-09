@@ -56,10 +56,6 @@ table_columns:
     label: "Status"
     width: content
 
-  - id: links
-    label: "Links"
-    width: content
-
   - id: realm_name
     label: "Realm Name"
     width: content
@@ -97,6 +93,12 @@ server_schema:
   - name: website
     type: string
     required: true
+
+  - name: wiki
+    type: string
+    required: false
+    default: ""
+    description: "Wiki URL"
 
   - name: discord
     type: string

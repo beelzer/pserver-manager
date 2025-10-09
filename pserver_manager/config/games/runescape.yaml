@@ -80,10 +80,6 @@ table_columns:
     label: "Host"
     width: content
 
-  - id: links
-    label: "Links"
-    width: content
-
   - id: server_type
     label: "Type"
     width: content
@@ -117,6 +113,12 @@ server_schema:
   - name: website
     type: string
     required: true
+
+  - name: wiki
+    type: string
+    required: false
+    default: ""
+    description: "Wiki URL"
 
   - name: discord
     type: string

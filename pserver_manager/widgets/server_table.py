@@ -401,6 +401,7 @@ class ServerTable(VBox):
         # Define link types and their icons
         links = [
             ("🌐", None, server.get_field('website', ''), "Visit website"),
+            ("📚", None, server.get_field('wiki', ''), "Visit wiki"),
             (None, "discord.svg", f"https://discord.gg/{server.get_field('discord', '')}" if server.get_field('discord', '') else None, "Join Discord"),
             (None, "reddit.svg", f"https://reddit.com/r/{server.get_field('reddit', '')}" if server.get_field('reddit', '') else None, "Visit Reddit"),
         ]

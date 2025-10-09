@@ -1,0 +1,30 @@
+id: echo
+name: Echo
+website: https://www.echo-rsps.com/
+wiki: ""
+discord: echorsps
+reddit: ""
+repository: []
+host: ""
+version_id: osrs
+status: online
+icon: servers/runescape/echo.png
+runelite: true
+server_type: Custom
+rates: Custom
+population: Medium
+language: English
+description: A unique Old School RuneScape private server with custom content including Tombs of Amascut and Theatre of Blood
+updates_url: ""
+updates_forum_mode: false
+updates_forum_page_limit: 0
+updates_forum_pagination_selector: ""
+updates_selectors:
+  item: ""
+  title: ""
+  link: ""
+  time: ""
+  preview: ""
+downloads:
+  - name: Java Launcher
+    url: https://www.dropbox.com/scl/fi/hsdmua6tn032fu86dtqnp/Echo-Launcher.jar?rlkey=l1mi3p64ty9hsvi7ud4eheojn&st=6m2afi1c&dl=1
