@@ -7,7 +7,7 @@ import re
 
 from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QCursor, QPalette
-from PySide6.QtWidgets import QFrame, QLabel, QProgressBar, QPushButton, QScrollArea, QTabWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QLabel, QScrollArea, QTabWidget, QVBoxLayout, QWidget
 
 from qtframework.layouts.card import Card
 from qtframework.widgets import HBox, VBox
@@ -24,7 +24,7 @@ class InfoPanel(VBox):
         Args:
             parent: Parent widget
         """
-        super().__init__(spacing=2, margins=(0, 5, 0, 10), parent=parent)
+        super().__init__(spacing=0, margins=(0, 0, 0, 0), parent=parent)
 
         self._subreddit = ""
         self._updates_url = ""
@@ -32,19 +32,10 @@ class InfoPanel(VBox):
         self._current_posts = []  # Store posts for re-rendering on theme change
         self._current_updates = []  # Store updates for re-rendering on theme change
 
-        # Create loading bar (slim, indeterminate progress)
-        self._loading_bar = QProgressBar()
-        self._loading_bar.setMaximumHeight(6)
-        self._loading_bar.setMinimum(0)
-        self._loading_bar.setMaximum(0)  # Indeterminate mode
-        self._loading_bar.setTextVisible(False)
-        self._loading_bar.hide()  # Hidden by default
-        self._update_loading_bar_style()
-        self.add_widget(self._loading_bar)
-
-        # Create tab widget
+        # Create tab widget with clean styling
         self._tab_widget = QTabWidget()
-        self._tab_widget.setDocumentMode(True)
+        self._tab_widget.setDocumentMode(False)
+        self._update_tab_styling()
 
         # Create Reddit tab
         self._reddit_tab = self._create_reddit_tab()
@@ -126,20 +117,11 @@ class InfoPanel(VBox):
 
         return tab
 
-    def _update_loading_bar_style(self) -> None:
-        """Update loading bar style based on current theme."""
-        palette = self.palette()
-        highlight_color = palette.color(QPalette.ColorRole.Highlight).name()
-
-        self._loading_bar.setStyleSheet(f"""
-            QProgressBar {{
-                border: none;
-                background-color: transparent;
-            }}
-            QProgressBar::chunk {{
-                background-color: {highlight_color};
-            }}
-        """)
+    def _update_tab_styling(self) -> None:
+        """Update tab widget styling to match app theme with clean borders."""
+        # Let the global stylesheet handle all tab styling
+        # This removes custom styling so it uses the same borders as other panels
+        self._tab_widget.setStyleSheet("")
 
     def _add_url_breaks(self, match: re.Match) -> str:
         """Add zero-width spaces to URLs to allow breaking.
@@ -166,11 +148,13 @@ class InfoPanel(VBox):
         """
         super().changeEvent(event)
 
-        # Re-render posts when palette changes (theme switch)
+        # Re-render content and update styling when palette changes (theme switch)
         if event.type() == QEvent.Type.PaletteChange:
-            self._update_loading_bar_style()
+            self._update_tab_styling()
             if self._current_posts:
                 self.set_posts(self._current_posts)
+            if self._current_updates:
+                self.set_updates(self._current_updates)
 
     def set_subreddit(self, subreddit: str) -> None:
         """Set the subreddit to display.
@@ -183,14 +167,12 @@ class InfoPanel(VBox):
             self._subreddit_label.setText(f"r/{subreddit}")
             self._clear_reddit_cards()
             self._ensure_reddit_tab_visible()
-            self.show_loading()
             self.show()
         else:
             self._remove_reddit_tab()
             # Hide panel if no tabs are visible
             if self._tab_widget.count() == 0:
                 self.hide()
-            self.hide_loading()
 
     def set_updates_url(self, updates_url: str) -> None:
         """Set the updates URL to fetch from.
@@ -203,7 +185,6 @@ class InfoPanel(VBox):
             self._updates_label.setText("Server Updates")
             self._clear_updates_cards()
             self._ensure_updates_tab_visible()
-            self.show_loading()
             self.show()
         else:
             self._remove_updates_tab()
@@ -267,13 +248,6 @@ class InfoPanel(VBox):
             self.show()
             self.collapsed_changed.emit(False)
 
-    def show_loading(self) -> None:
-        """Show loading indicator."""
-        self._loading_bar.show()
-
-    def hide_loading(self) -> None:
-        """Hide loading indicator."""
-        self._loading_bar.hide()
 
     def set_content(self, content: str) -> None:
         """Set the Reddit content text.
@@ -286,7 +260,6 @@ class InfoPanel(VBox):
         label = QLabel(content)
         label.setWordWrap(True)
         self._reddit_cards_layout.insertWidget(0, label)
-        self.hide_loading()
 
     def _clear_reddit_cards(self) -> None:
         """Clear all Reddit cards from the layout."""
@@ -476,8 +449,6 @@ class InfoPanel(VBox):
 
             self._reddit_cards_layout.insertWidget(self._reddit_cards_layout.count() - 1, card)
 
-        self.hide_loading()
-
     def set_updates(self, updates: list) -> None:
         """Set server updates to display.
 
@@ -492,7 +463,6 @@ class InfoPanel(VBox):
             label = QLabel("No updates found.")
             label.setWordWrap(True)
             self._updates_cards_layout.insertWidget(0, label)
-            self.hide_loading()
             return
 
         self._clear_updates_cards()
@@ -584,5 +554,3 @@ class InfoPanel(VBox):
                 card.add_widget(preview_label)
 
             self._updates_cards_layout.insertWidget(self._updates_cards_layout.count() - 1, card)
-
-        self.hide_loading()
