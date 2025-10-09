@@ -62,6 +62,8 @@ from qtframework.widgets.advanced import ConfirmDialog
 from pserver_manager.models import ServerStatus
 from pserver_manager.utils import ping_multiple_servers_sync, ping_multiple_hosts_sync, scrape_servers_sync
 from pserver_manager.utils.paths import get_app_paths
+from pserver_manager.widgets.server_links_widget import ServerLinksWidget
+from pserver_manager.widgets.server_data_formatter import ServerDataFormatter
 
 
 if TYPE_CHECKING:
@@ -383,94 +385,7 @@ class ServerTable(VBox):
         Returns:
             Widget containing link icons
         """
-        import webbrowser
-        from PySide6.QtWidgets import QWidget, QHBoxLayout, QPushButton
-        from pserver_manager.utils.svg_icon_loader import get_svg_loader
-
-        widget = QWidget()
-        widget.setStyleSheet("QWidget { background: transparent; }")
-        layout = QHBoxLayout(widget)
-        layout.setContentsMargins(4, 2, 4, 2)
-        layout.setSpacing(4)
-        layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-
-        # Get SVG icon loader
-        svg_loader = get_svg_loader()
-        brands_dir = Path(__file__).parent.parent / "assets" / "brands"
-
-        # Define link types and their icons
-        links = [
-            ("🌐", None, server.get_field('website', ''), "Visit website"),
-            ("📚", None, server.get_field('wiki', ''), "Visit wiki"),
-            (None, "discord.svg", f"https://discord.gg/{server.get_field('discord', '')}" if server.get_field('discord', '') else None, "Join Discord"),
-            (None, "reddit.svg", f"https://reddit.com/r/{server.get_field('reddit', '')}" if server.get_field('reddit', '') else None, "Visit Reddit"),
-        ]
-
-        # Add repository links (support multiple repositories)
-        repositories = server.get_field('repository', [])
-        if isinstance(repositories, list):
-            repo_type_map = {
-                'github': ('github.svg', 'https://github.com/{}', 'View on GitHub'),
-                'gitlab': ('gitlab.svg', 'https://gitlab.com/{}', 'View on GitLab'),
-                'bitbucket': ('bitbucket.svg', 'https://bitbucket.org/{}', 'View on Bitbucket'),
-                'gitea': ('gitea.svg', 'https://gitea.com/{}', 'View on Gitea'),
-            }
-            for repo in repositories:
-                if isinstance(repo, dict):
-                    repo_type = repo.get('type', '').lower()
-                    repo_id = repo.get('id', '')
-                    if repo_type in repo_type_map and repo_id:
-                        svg_file, url_template, tooltip = repo_type_map[repo_type]
-                        links.append((None, svg_file, url_template.format(repo_id), tooltip))
-
-        links.extend([
-            ("📝", None, server.get_field('register_url', ''), "Register account"),
-            ("🔑", None, server.get_field('login_url', ''), "Login/manage account"),
-        ])
-
-        for emoji, svg_file, url, tooltip in links:
-            if url:
-                btn = QPushButton()
-
-                # Use SVG icon if available, otherwise use emoji
-                if svg_file:
-                    svg_path = brands_dir / svg_file
-                    if svg_path.exists():
-                        # Load icon without recoloring to preserve brand colors
-                        from PySide6.QtGui import QPixmap
-                        pixmap = QPixmap(str(svg_path))
-                        # Scale to 16x16 if needed
-                        if pixmap.width() != 16 or pixmap.height() != 16:
-                            pixmap = pixmap.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                        icon = QIcon(pixmap)
-                        btn.setIcon(icon)
-                        btn.setIconSize(QSize(16, 16))
-                    else:
-                        btn.setText(emoji if emoji else "")
-                else:
-                    btn.setText(emoji)
-
-                btn.setToolTip(tooltip)
-                btn.setStyleSheet("""
-                    QPushButton {
-                        border: none;
-                        background: transparent;
-                        font-size: 14px;
-                        padding: 0px;
-                        margin: 0px;
-                        min-height: 0px;
-                        max-height: 20px;
-                    }
-                    QPushButton:hover {
-                        background: transparent;
-                    }
-                """)
-                btn.setCursor(Qt.CursorShape.PointingHandCursor)
-                btn.clicked.connect(lambda checked=False, u=url: webbrowser.open(u))
-                layout.addWidget(btn)
-
-        layout.addStretch()
-        return widget
+        return ServerLinksWidget(server)
 
     def _get_column_value(self, server: ServerDefinition, column_id: str) -> Any:
         """Get the value for a specific column.
@@ -482,30 +397,7 @@ class ServerTable(VBox):
         Returns:
             Column value
         """
-        if column_id == "name":
-            return server.name
-        elif column_id == "status":
-            return self._format_status(server.status, server.ping_ms)
-        elif column_id == "address":
-            # Use host directly (may already include port)
-            return server.host
-        elif column_id == "players":
-            if server.players == -1:
-                return "-"
-            if server.max_players > 0:
-                return f"{server.players}/{server.max_players}"
-            return str(server.players)
-        elif column_id == "uptime":
-            return server.uptime
-        elif column_id == "version":
-            return server.version_id
-        else:
-            # Get custom field from server data
-            value = server.get_field(column_id, "")
-            # Format boolean values
-            if isinstance(value, bool):
-                return "Yes" if value else "No"
-            return value
+        return ServerDataFormatter.get_column_value(server, column_id)
 
     def _format_status(self, status: ServerStatus, ping_ms: int) -> str:
         """Format status for display with ping.
@@ -517,20 +409,7 @@ class ServerTable(VBox):
         Returns:
             Formatted status string with ping
         """
-        # Show "-" if not pinged yet
-        if ping_ms == -1:
-            return "-"
-
-        if status == ServerStatus.ONLINE and ping_ms >= 0:
-            return f"🟢 {ping_ms}ms"
-        elif status == ServerStatus.OFFLINE:
-            return "🔴 Offline"
-        elif status == ServerStatus.MAINTENANCE:
-            return "🟡 Maintenance"
-        elif status == ServerStatus.STARTING:
-            return "🟡 Starting"
-        else:
-            return f"● {status.value}"
+        return ServerDataFormatter.format_status(status, ping_ms)
 
     def _set_status_color_inline_tree(self, item: QTreeWidgetItem, column: int, status: ServerStatus, ping_ms: int) -> None:
         """Set status color for tree widget item.
@@ -541,43 +420,7 @@ class ServerTable(VBox):
             status: Server status
             ping_ms: Ping in milliseconds (-1 if not pinged)
         """
-        try:
-            from PySide6.QtWidgets import QApplication
-
-            app = QApplication.instance()
-            if app and hasattr(app, "theme_manager"):
-                theme = app.theme_manager.get_current_theme()
-                if theme and theme.tokens:
-                    tokens = theme.tokens.semantic
-
-                    # Determine color based on status and ping
-                    if status == ServerStatus.OFFLINE:
-                        color = tokens.feedback_error
-                    elif status == ServerStatus.MAINTENANCE:
-                        color = tokens.feedback_warning
-                    elif status == ServerStatus.STARTING:
-                        color = tokens.feedback_info
-                    elif status == ServerStatus.ONLINE:
-                        # Color based on ping latency
-                        if ping_ms < 150:
-                            color = tokens.feedback_success
-                        elif ping_ms < 250:
-                            color = tokens.feedback_warning
-                        else:
-                            color = tokens.feedback_error
-                    else:
-                        color = tokens.fg_primary
-
-                    from PySide6.QtGui import QColor, QBrush
-                    from PySide6.QtCore import Qt
-
-                    # Set font color for this column
-                    item.setForeground(column, QBrush(QColor(color)))
-
-                    # Set background to transparent
-                    item.setBackground(column, QBrush(Qt.GlobalColor.transparent))
-        except (AttributeError, ImportError):
-            pass
+        ServerDataFormatter.set_status_color(item, column, status, ping_ms)
 
     def _on_selection_changed(self) -> None:
         """Handle selection change."""
