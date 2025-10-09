@@ -44,14 +44,16 @@ class MainWindow(BaseWindow):
         self._app_paths = get_app_paths()
         self._app_paths.ensure_directories()
 
-        # Migrate old config if it exists and has servers
+        # Migrate old config if it exists and has servers (only run once)
+        migration_marker = self._app_paths.get_user_data_dir() / ".migration_complete"
         old_config_dir = Path(__file__).parent / "config"
         old_servers_dir = old_config_dir / "servers"
         new_servers_dir = self._app_paths.get_servers_dir()
 
-        # Check if old servers exist and new directory is empty
+        # Check if old servers exist, new directory is empty, and migration hasn't run before
         needs_migration = (
-            old_servers_dir.exists()
+            not migration_marker.exists()
+            and old_servers_dir.exists()
             and any(old_servers_dir.rglob("*.yaml"))
             and not any(new_servers_dir.rglob("*.yaml"))
         )
@@ -60,6 +62,11 @@ class MainWindow(BaseWindow):
             print("Migrating old configuration to new location...")
             if self._app_paths.migrate_old_config(old_config_dir):
                 print(f"Configuration migrated to: {self._app_paths.get_user_data_dir()}")
+                # Mark migration as complete
+                migration_marker.write_text("Migration completed")
+        elif not migration_marker.exists() and not any(new_servers_dir.rglob("*.yaml")):
+            # First run with empty directory - mark as complete to skip future migrations
+            migration_marker.write_text("No migration needed")
 
         # Migrate user servers to current schema if needed
         user_servers_dir = self._app_paths.get_servers_dir()
@@ -1095,6 +1102,37 @@ class MainWindow(BaseWindow):
     def _check_for_updates_on_startup(self) -> None:
         """Check for updates on startup and show dialog if available."""
         try:
+            # Check if user servers directory is completely empty (no .yaml files at all)
+            user_servers_dir = self._app_paths.get_servers_dir()
+            existing_files = list(user_servers_dir.rglob("*.yaml"))
+            has_any_servers = len(existing_files) > 0
+
+            print(f"[Update Check] Servers directory: {user_servers_dir}")
+            print(f"[Update Check] Existing .yaml files: {len(existing_files)}")
+            if existing_files:
+                print(f"[Update Check] Files found: {[str(f.relative_to(user_servers_dir)) for f in existing_files[:5]]}")
+
+            # If directory is completely empty, auto-import all bundled files without prompting
+            if not has_any_servers:
+                print("Servers directory is empty - auto-importing bundled servers and themes...")
+
+                # Import all bundled servers
+                imported = self._update_checker.import_all_new_servers()
+                print(f"Auto-imported {imported} bundled servers")
+
+                # Import all bundled themes
+                imported_themes = self._update_checker.import_all_new_themes()
+                print(f"Auto-imported {imported_themes} bundled themes")
+
+                if imported_themes > 0:
+                    self._reload_themes()
+
+                # Reload config to show imported servers
+                self._load_config()
+                self._show_all_servers()
+                return
+
+            # Directory has files - check for updates normally
             update_info = self._update_checker.check_for_updates()
 
             # Only show dialog if there are updates

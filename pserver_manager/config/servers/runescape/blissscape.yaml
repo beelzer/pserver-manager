@@ -20,8 +20,3 @@ scraping:
   total:
     css: td#now
     extract: text
-_metadata:
-  source: bundled
-  app_version: 1.0.0
-  content_hash: ""
-  last_updated: ''

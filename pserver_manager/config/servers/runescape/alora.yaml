@@ -39,8 +39,3 @@ downloads:
     url: https://www.alora.io/downloads/Alora.apk
   - name: iOS/iPhone
     url: https://mobile.alora.io
-_metadata:
-  source: bundled
-  app_version: 1.0.0
-  content_hash: ""
-  last_updated: ''

@@ -22,8 +22,3 @@ downloads:
     url: https://impact.gg/download/
   - name: Linux Client
     url: https://impact.gg/download/
-_metadata:
-  source: bundled
-  app_version: 1.0.0
-  content_hash: ""
-  last_updated: ''

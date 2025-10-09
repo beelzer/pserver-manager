@@ -39,8 +39,3 @@ downloads:
     url: https://vidyascape.org/downloads
   - name: Linux Client
     url: https://vidyascape.org/downloads
-_metadata:
-  source: bundled
-  app_version: 1.0.0
-  content_hash: ""
-  last_updated: ''

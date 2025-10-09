@@ -29,8 +29,3 @@ downloads:
     url: https://d2n1q79xme98rn.cloudfront.net/rx_live/RX%20Setup%2032.exe
   - name: Java (Cross-Platform)
     url: https://d2n1q79xme98rn.cloudfront.net/rx_live/RX%20Launcher.jar
-_metadata:
-  source: bundled
-  app_version: 1.0.0
-  content_hash: ""
-  last_updated: ''

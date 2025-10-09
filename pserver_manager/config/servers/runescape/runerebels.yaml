@@ -45,8 +45,3 @@ scraping:
     regex: Players Online:.*?<a[^>]*>(\d+)</a>
   uptime:
     regex: <td>(\d+\s+days?\s+\d+\s+hrs?\s+\d+\s+min)</td>\s*<td>world1\.runerebels\.com</td>
-_metadata:
-  source: bundled
-  app_version: 1.0.0
-  content_hash: ""
-  last_updated: ''
