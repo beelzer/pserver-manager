@@ -25,6 +25,7 @@ def _fetch_updates(
     forum_page_limit: int,
     fetch_thread_content: bool,
     thread_content_selector: str,
+    auto_detect_date: bool,
 ) -> list[dict]:
     """Fetch updates from a URL (runs in background thread).
 
@@ -43,6 +44,7 @@ def _fetch_updates(
         forum_mode: Whether to scrape forum threads (enables pagination)
         forum_pagination_selector: CSS selector for next page link in forum mode
         forum_page_limit: Maximum number of forum pages to scrape
+        auto_detect_date: If True, scan update content for dates if time selector fails
 
     Returns:
         List of update dictionaries
@@ -68,6 +70,7 @@ def _fetch_updates(
             forum_page_limit=forum_page_limit,
             fetch_thread_content=fetch_thread_content,
             thread_content_selector=thread_content_selector,
+            auto_detect_date=auto_detect_date,
         )
 
     # Convert to dictionaries for easier handling
@@ -97,6 +100,7 @@ class UpdatesFetchHelper(BackgroundHelper[list[dict]]):
         forum_page_limit: int = 1,
         fetch_thread_content: bool = False,
         thread_content_selector: str = "",
+        auto_detect_date: bool = False,
     ) -> None:
         """Start fetching updates in background.
 
@@ -112,6 +116,7 @@ class UpdatesFetchHelper(BackgroundHelper[list[dict]]):
             forum_page_limit: Maximum number of forum pages to scrape
             fetch_thread_content: Whether to fetch full content from thread pages
             thread_content_selector: CSS selector for content within thread page
+            auto_detect_date: If True, scan update content for dates if time selector fails
         """
         # Default selectors
         if selectors is None:
@@ -135,6 +140,7 @@ class UpdatesFetchHelper(BackgroundHelper[list[dict]]):
             forum_page_limit=forum_page_limit,
             fetch_thread_content=fetch_thread_content,
             thread_content_selector=thread_content_selector,
+            auto_detect_date=auto_detect_date,
         )
 
     def stop_fetching(self) -> None:

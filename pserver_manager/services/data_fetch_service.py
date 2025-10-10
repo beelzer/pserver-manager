@@ -75,6 +75,7 @@ class DataFetchService(QObject):
         forum_page_limit: int = 1,
         fetch_thread_content: bool = False,
         thread_content_selector: str = "",
+        auto_detect_date: bool = False,
     ) -> None:
         """Fetch server updates from a URL.
 
@@ -90,6 +91,7 @@ class DataFetchService(QObject):
             forum_page_limit: Maximum number of forum pages to scrape
             fetch_thread_content: Whether to fetch full content from thread pages
             thread_content_selector: CSS selector for content within thread page
+            auto_detect_date: If True, scan update content for dates if time selector fails
         """
         self._updates_helper.start_fetching(
             url=url,
@@ -103,6 +105,7 @@ class DataFetchService(QObject):
             forum_page_limit=forum_page_limit,
             fetch_thread_content=fetch_thread_content,
             thread_content_selector=thread_content_selector,
+            auto_detect_date=auto_detect_date,
         )
 
     def start_batch_scan(self, servers: list[ServerDefinition], max_workers: int = 5) -> None:

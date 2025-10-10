@@ -80,6 +80,7 @@ class InfoPanelController(QObject):
                 forum_page_limit=game.updates_forum_page_limit,
                 fetch_thread_content=game.updates_fetch_thread_content,
                 thread_content_selector=game.updates_thread_content_selector,
+                auto_detect_date=game.data.get('updates_auto_detect_date', False),
             )
         else:
             self._info_panel.set_updates_url("")
@@ -164,6 +165,7 @@ class InfoPanelController(QObject):
             forum_page_limit=server.updates_forum_page_limit,
             fetch_thread_content=server.updates_fetch_thread_content,
             thread_content_selector=server.updates_thread_content_selector,
+            auto_detect_date=server.data.get('updates_auto_detect_date', False),
             force=True,
         )
         self._notifications.info("Refreshing", f"Fetching updates for {server.name}...")
@@ -190,6 +192,7 @@ class InfoPanelController(QObject):
             forum_page_limit=game.updates_forum_page_limit,
             fetch_thread_content=game.updates_fetch_thread_content,
             thread_content_selector=game.updates_thread_content_selector,
+            auto_detect_date=getattr(game, 'updates_auto_detect_date', False),
             force=True,
         )
         self._notifications.info("Refreshing", "Fetching latest updates...")
@@ -207,6 +210,7 @@ class InfoPanelController(QObject):
         forum_page_limit: int = 1,
         fetch_thread_content: bool = False,
         thread_content_selector: str = "",
+        auto_detect_date: bool = False,
         force: bool = False,
     ) -> None:
         """Fetch updates with cache checking.
@@ -223,6 +227,7 @@ class InfoPanelController(QObject):
             forum_page_limit: Maximum number of forum pages
             fetch_thread_content: Whether to fetch full content from thread pages
             thread_content_selector: CSS selector for content within thread page
+            auto_detect_date: If True, scan update content for dates if time selector fails
             force: If True, bypass cache
         """
         # Check cache unless force refresh
@@ -245,6 +250,7 @@ class InfoPanelController(QObject):
             forum_page_limit=forum_page_limit,
             fetch_thread_content=fetch_thread_content,
             thread_content_selector=thread_content_selector,
+            auto_detect_date=auto_detect_date,
         )
 
     def _on_reddit_fetched(self, posts: list) -> None:

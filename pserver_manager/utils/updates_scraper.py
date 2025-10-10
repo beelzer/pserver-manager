@@ -87,6 +87,48 @@ class UpdateNormalizer:
         return None
 
     @staticmethod
+    def extract_dates_from_text(text: str) -> list[str]:
+        """Extract all date-like strings from text.
+
+        Args:
+            text: Text to search for dates
+
+        Returns:
+            List of potential date strings found
+        """
+        if not text:
+            return []
+
+        dates = []
+
+        # Pattern 1: MM/DD/YY or MM/DD/YYYY or DD/MM/YY or DD/MM/YYYY
+        date_patterns = [
+            r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b',  # 10/04/25, 10-04-2025
+            r'\b\d{4}[/-]\d{1,2}[/-]\d{1,2}\b',    # 2025-10-04
+            # Month name patterns
+            r'\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|'
+            r'Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)'
+            r'\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b',  # October 4, 2025
+            r'\b\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|'
+            r'May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|'
+            r'Dec(?:ember)?)\s+\d{4}\b',  # 4 October 2025
+        ]
+
+        for pattern in date_patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            dates.extend(matches)
+
+        # Return unique dates, preserving order
+        seen = set()
+        unique_dates = []
+        for date in dates:
+            if date not in seen:
+                seen.add(date)
+                unique_dates.append(date)
+
+        return unique_dates
+
+    @staticmethod
     def format_date(dt: datetime | None, include_time: bool = False) -> str:
         """Format a datetime object to a consistent string format.
 
@@ -287,6 +329,7 @@ class UpdatesScraper:
         wait_time: int = 2000,
         max_dropdown_options: int | None = None,
         parallel_browsers: int = 4,
+        auto_detect_date: bool = False,
     ) -> list[ServerUpdate]:
         """Fetch updates from a dropdown/form-based changelog using Playwright.
 
@@ -372,7 +415,8 @@ class UpdatesScraper:
                             # Parse updates from this option's content
                             updates = self._parse_updates_from_soup(
                                 soup, url, item_selector, title_selector,
-                                link_selector, time_selector, preview_selector, limit
+                                link_selector, time_selector, preview_selector, limit,
+                                auto_detect_date=auto_detect_date
                             )
 
                             page.close()
@@ -406,6 +450,7 @@ class UpdatesScraper:
         preview_selector: str = "p",
         limit: int = 10,
         wait_time: int = 4000,
+        auto_detect_date: bool = False,
     ) -> list[ServerUpdate]:
         """Fetch updates from a JavaScript-rendered website using Playwright.
 
@@ -418,6 +463,7 @@ class UpdatesScraper:
             preview_selector: CSS selector for preview text within item
             limit: Maximum number of updates to return
             wait_time: Time to wait for JS to render (milliseconds)
+            auto_detect_date: If True, scan update content for dates if time selector fails
 
         Returns:
             List of ServerUpdate objects
@@ -439,7 +485,8 @@ class UpdatesScraper:
                 soup = BeautifulSoup(content, 'html.parser')
                 return self._parse_updates_from_soup(
                     soup, url, item_selector, title_selector,
-                    link_selector, time_selector, preview_selector, limit
+                    link_selector, time_selector, preview_selector, limit,
+                    auto_detect_date=auto_detect_date
                 )
         except Exception as e:
             print(f"Error fetching updates with JavaScript: {e}")
@@ -455,6 +502,7 @@ class UpdatesScraper:
         time_selector: str,
         preview_selector: str,
         limit: int,
+        auto_detect_date: bool = False,
     ) -> list[ServerUpdate]:
         """Parse updates from BeautifulSoup object.
 
@@ -467,6 +515,7 @@ class UpdatesScraper:
             time_selector: CSS selector for time/date within item
             preview_selector: CSS selector for preview text within item
             limit: Maximum number of updates to return
+            auto_detect_date: If True, scan update content for dates if time selector fails
 
         Returns:
             List of ServerUpdate objects with normalized data
@@ -496,6 +545,32 @@ class UpdatesScraper:
                 if time_elem:
                     # Try to get datetime attribute first
                     time_str = time_elem.get("datetime", time_elem.get_text(strip=True))
+
+                # Auto-detect date if enabled and (time not found OR time cannot be parsed)
+                should_auto_detect = auto_detect_date and (
+                    time_str == "Unknown time"
+                    or not time_str
+                    or UpdateNormalizer.parse_date(time_str) is None
+                )
+
+                if should_auto_detect:
+                    # Get all text from the update item
+                    item_text = item.get_text(separator=' ', strip=True)
+
+                    # Extract all dates from the text
+                    found_dates = UpdateNormalizer.extract_dates_from_text(item_text)
+
+                    # If exactly one date found, use it
+                    if len(found_dates) == 1:
+                        time_str = found_dates[0]
+                        print(f"Auto-detected date: {time_str}")
+                    elif len(found_dates) > 1:
+                        # Multiple dates found - use the first parseable one
+                        for date_candidate in found_dates:
+                            if UpdateNormalizer.parse_date(date_candidate):
+                                time_str = date_candidate
+                                print(f"Auto-detected date (multiple found, using first valid): {time_str}")
+                                break
 
                 # Extract preview
                 preview_elem = item.select_one(preview_selector) if preview_selector else None
@@ -549,6 +624,7 @@ class UpdatesScraper:
         forum_page_limit: int = 1,
         fetch_thread_content: bool = False,
         thread_content_selector: str = "",
+        auto_detect_date: bool = False,
     ) -> list[ServerUpdate]:
         """Fetch updates from a website.
 
@@ -566,6 +642,7 @@ class UpdatesScraper:
             forum_mode: Whether to scrape forum threads (enables pagination)
             forum_pagination_selector: CSS selector for next page link in forum mode
             forum_page_limit: Maximum number of forum pages to scrape
+            auto_detect_date: If True, scan update content for dates if time selector fails
 
         Returns:
             List of ServerUpdate objects
@@ -592,13 +669,15 @@ class UpdatesScraper:
             return self.fetch_updates_with_dropdown(
                 url, dropdown_selector, item_selector, title_selector,
                 link_selector, time_selector, preview_selector, limit,
-                max_dropdown_options=max_dropdown_options
+                max_dropdown_options=max_dropdown_options,
+                auto_detect_date=auto_detect_date
             )
 
         if use_js:
             return self.fetch_updates_with_js(
                 url, item_selector, title_selector, link_selector,
-                time_selector, preview_selector, limit
+                time_selector, preview_selector, limit,
+                auto_detect_date=auto_detect_date
             )
 
         try:
@@ -608,7 +687,8 @@ class UpdatesScraper:
 
             return self._parse_updates_from_soup(
                 soup, url, item_selector, title_selector,
-                link_selector, time_selector, preview_selector, limit
+                link_selector, time_selector, preview_selector, limit,
+                auto_detect_date=auto_detect_date
             )
         except requests.RequestException as e:
             print(f"Error fetching updates: {e}")

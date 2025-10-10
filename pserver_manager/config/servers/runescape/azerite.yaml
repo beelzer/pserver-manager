@@ -1,0 +1,37 @@
+id: azerite
+name: Azerite
+website: https://azeriteps.com/
+discord: azerite
+repository: []
+host: 144.217.65.144:5555
+version_id: osrs
+status: online
+icon: servers/runescape/azerite.png
+runelite: false
+server_type: Custom
+rates: Custom
+population: Medium
+language: English
+description: The most unique custom RSPS featuring custom boss systems, new perk mechanics, and regular game updates with active community-driven development
+updates_url: https://azeriteps.com/updates
+updates_use_js: true
+updates_auto_detect_date: true
+updates_selectors:
+  item: .update-item-container
+  title: h3
+  link: a[href*="/update/"]
+  time: h3
+  preview: p
+scraping:
+  url: https://azeriteps.com/
+  use_browser: false
+  cache_duration: 300
+  total:
+    css: .online-number
+downloads:
+  - name: Java Launcher (Recommended)
+    url: https://storage.googleapis.com/tamatea/Azerite.jar
+  - name: Windows (64-bit)
+    url: https://storage.googleapis.com/tamatea/AzeriteSetup64.exe
+  - name: Jarfix (Troubleshooting)
+    url: https://storage.googleapis.com/legionent/jarfix.exe
