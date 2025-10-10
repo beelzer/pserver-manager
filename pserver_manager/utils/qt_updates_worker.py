@@ -23,6 +23,8 @@ def _fetch_updates(
     forum_mode: bool,
     forum_pagination_selector: str,
     forum_page_limit: int,
+    fetch_thread_content: bool,
+    thread_content_selector: str,
 ) -> list[dict]:
     """Fetch updates from a URL (runs in background thread).
 
@@ -64,6 +66,8 @@ def _fetch_updates(
             forum_mode=forum_mode,
             forum_pagination_selector=forum_pagination_selector,
             forum_page_limit=forum_page_limit,
+            fetch_thread_content=fetch_thread_content,
+            thread_content_selector=thread_content_selector,
         )
 
     # Convert to dictionaries for easier handling
@@ -91,6 +95,8 @@ class UpdatesFetchHelper(BackgroundHelper[list[dict]]):
         forum_mode: bool = False,
         forum_pagination_selector: str = ".ipsPagination_next",
         forum_page_limit: int = 1,
+        fetch_thread_content: bool = False,
+        thread_content_selector: str = "",
     ) -> None:
         """Start fetching updates in background.
 
@@ -104,6 +110,8 @@ class UpdatesFetchHelper(BackgroundHelper[list[dict]]):
             forum_mode: Whether to scrape forum threads (enables pagination)
             forum_pagination_selector: CSS selector for next page link in forum mode
             forum_page_limit: Maximum number of forum pages to scrape
+            fetch_thread_content: Whether to fetch full content from thread pages
+            thread_content_selector: CSS selector for content within thread page
         """
         # Default selectors
         if selectors is None:
@@ -125,6 +133,8 @@ class UpdatesFetchHelper(BackgroundHelper[list[dict]]):
             forum_mode=forum_mode,
             forum_pagination_selector=forum_pagination_selector,
             forum_page_limit=forum_page_limit,
+            fetch_thread_content=fetch_thread_content,
+            thread_content_selector=thread_content_selector,
         )
 
     def stop_fetching(self) -> None:

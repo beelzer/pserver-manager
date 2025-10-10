@@ -78,6 +78,8 @@ class InfoPanelController(QObject):
                 forum_mode=game.updates_forum_mode,
                 forum_pagination_selector=game.updates_forum_pagination_selector,
                 forum_page_limit=game.updates_forum_page_limit,
+                fetch_thread_content=game.updates_fetch_thread_content,
+                thread_content_selector=game.updates_thread_content_selector,
             )
         else:
             self._info_panel.set_updates_url("")
@@ -160,6 +162,8 @@ class InfoPanelController(QObject):
             forum_mode=server.updates_forum_mode,
             forum_pagination_selector=server.updates_forum_pagination_selector,
             forum_page_limit=server.updates_forum_page_limit,
+            fetch_thread_content=server.updates_fetch_thread_content,
+            thread_content_selector=server.updates_thread_content_selector,
             force=True,
         )
         self._notifications.info("Refreshing", f"Fetching updates for {server.name}...")
@@ -184,6 +188,8 @@ class InfoPanelController(QObject):
             forum_mode=game.updates_forum_mode,
             forum_pagination_selector=game.updates_forum_pagination_selector,
             forum_page_limit=game.updates_forum_page_limit,
+            fetch_thread_content=game.updates_fetch_thread_content,
+            thread_content_selector=game.updates_thread_content_selector,
             force=True,
         )
         self._notifications.info("Refreshing", "Fetching latest updates...")
@@ -199,6 +205,8 @@ class InfoPanelController(QObject):
         forum_mode: bool = False,
         forum_pagination_selector: str = ".ipsPagination_next",
         forum_page_limit: int = 1,
+        fetch_thread_content: bool = False,
+        thread_content_selector: str = "",
         force: bool = False,
     ) -> None:
         """Fetch updates with cache checking.
@@ -213,6 +221,8 @@ class InfoPanelController(QObject):
             forum_mode: Whether to scrape forum threads
             forum_pagination_selector: CSS selector for next page link
             forum_page_limit: Maximum number of forum pages
+            fetch_thread_content: Whether to fetch full content from thread pages
+            thread_content_selector: CSS selector for content within thread page
             force: If True, bypass cache
         """
         # Check cache unless force refresh
@@ -233,6 +243,8 @@ class InfoPanelController(QObject):
             forum_mode=forum_mode,
             forum_pagination_selector=forum_pagination_selector,
             forum_page_limit=forum_page_limit,
+            fetch_thread_content=fetch_thread_content,
+            thread_content_selector=thread_content_selector,
         )
 
     def _on_reddit_fetched(self, posts: list) -> None:

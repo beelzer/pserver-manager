@@ -269,6 +269,8 @@ class BatchScanWorker(QObject):
                                 page_limit=server.updates_forum_page_limit,
                                 thread_limit=updates_limit,
                                 use_js=server.updates_use_js,
+                                fetch_thread_content=server.updates_fetch_thread_content,
+                                thread_content_selector=server.updates_thread_content_selector,
                             )
                         else:
                             # Regular webpage scraping

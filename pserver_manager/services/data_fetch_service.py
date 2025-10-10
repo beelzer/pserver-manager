@@ -73,6 +73,8 @@ class DataFetchService(QObject):
         forum_mode: bool = False,
         forum_pagination_selector: str = ".ipsPagination_next",
         forum_page_limit: int = 1,
+        fetch_thread_content: bool = False,
+        thread_content_selector: str = "",
     ) -> None:
         """Fetch server updates from a URL.
 
@@ -86,6 +88,8 @@ class DataFetchService(QObject):
             forum_mode: Whether to scrape forum threads (enables pagination)
             forum_pagination_selector: CSS selector for next page link in forum mode
             forum_page_limit: Maximum number of forum pages to scrape
+            fetch_thread_content: Whether to fetch full content from thread pages
+            thread_content_selector: CSS selector for content within thread page
         """
         self._updates_helper.start_fetching(
             url=url,
@@ -97,6 +101,8 @@ class DataFetchService(QObject):
             forum_mode=forum_mode,
             forum_pagination_selector=forum_pagination_selector,
             forum_page_limit=forum_page_limit,
+            fetch_thread_content=fetch_thread_content,
+            thread_content_selector=thread_content_selector,
         )
 
     def start_batch_scan(self, servers: list[ServerDefinition], max_workers: int = 5) -> None:

@@ -7,9 +7,9 @@ updates_url: https://vidyascape.org/patchnotes
 updates_use_js: true
 updates_selectors:
   item: div.border-secondary
-  title: .card-header
+  title: ""
   link: ""
-  time: .card-header
+  time: .card-header button
   preview: .card-body
 repository: []
 host: ""

@@ -43,12 +43,12 @@ class UpdateCard:
         # Add title
         UpdateCard._add_title(card, update, style)
 
-        # Add metadata
-        UpdateCard._add_metadata(card, update)
-
         # Add preview if available
         if update.get("preview"):
             UpdateCard._add_preview(card, update, palette, style)
+
+        # Add date at bottom
+        UpdateCard._add_date(card, update)
 
         return card
 
@@ -76,21 +76,21 @@ class UpdateCard:
         card.add_widget(title_label)
 
     @staticmethod
-    def _add_metadata(card: Card, update: dict) -> None:
-        """Add metadata to the card.
+    def _add_date(card: Card, update: dict) -> None:
+        """Add date to the card.
 
         Args:
-            card: Card to add metadata to
+            card: Card to add date to
             update: Update dictionary
         """
         time_str = update.get("time", "Unknown time")
-        meta_label = QLabel(f'<span style="opacity: 0.7;">{html.escape(time_str)}</span>')
-        meta_label.setTextFormat(Qt.TextFormat.RichText)
-        meta_label.setWordWrap(True)
-        meta_label.setStyleSheet(
-            "QLabel { font-size: 14px; word-wrap: break-word; word-break: break-word; }"
+        date_label = QLabel(f'<span style="opacity: 0.7;">{html.escape(time_str)}</span>')
+        date_label.setTextFormat(Qt.TextFormat.RichText)
+        date_label.setWordWrap(True)
+        date_label.setStyleSheet(
+            "QLabel { font-size: 12px; word-wrap: break-word; word-break: break-word; }"
         )
-        card.add_widget(meta_label)
+        card.add_widget(date_label)
 
     @staticmethod
     def _add_preview(card: Card, update: dict, palette: QPalette, style) -> None:

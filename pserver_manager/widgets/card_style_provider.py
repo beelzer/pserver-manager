@@ -92,6 +92,29 @@ class CardStyleProvider:
         return bg_color, border_color
 
     @staticmethod
+    def get_footer_bg_color(palette: QPalette, is_dark_theme: bool) -> str:
+        """Get footer background color (like status bar).
+
+        Args:
+            palette: QPalette to extract colors from
+            is_dark_theme: Whether the theme is dark
+
+        Returns:
+            Footer background color as hex string
+        """
+        # Get base window color
+        footer_bg_color = palette.color(QPalette.ColorRole.Window)
+
+        # Make it slightly darker in dark themes, slightly lighter in light themes
+        # to create subtle separation like status bar
+        if is_dark_theme:
+            footer_bg_color = footer_bg_color.darker(108)  # 8% darker
+        else:
+            footer_bg_color = footer_bg_color.lighter(102)  # 2% lighter
+
+        return footer_bg_color.name()
+
+    @staticmethod
     def get_score_color(palette: QPalette, score: int) -> str:
         """Get color for a Reddit score based on its value.
 

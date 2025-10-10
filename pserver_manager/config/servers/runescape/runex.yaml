@@ -16,6 +16,8 @@ description: A RuneScape private server with semi-custom content
 updates_url: https://rxps.io/forums/index.php?app=forums&module=forums&controller=forums&id=2
 updates_forum_mode: true
 updates_forum_page_limit: 3
+updates_fetch_thread_content: true
+updates_thread_content_selector: ".ipsType_richText"
 updates_selectors:
   item: "li[data-rowid]"
   title: ".ipsDataItem_title a"

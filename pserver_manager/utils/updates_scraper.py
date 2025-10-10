@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+from urllib.parse import urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -17,25 +19,244 @@ except ImportError:
     PLAYWRIGHT_AVAILABLE = False
 
 
+class UpdateNormalizer:
+    """Utilities for normalizing update data to consistent formats."""
+
+    # Standard output format for dates
+    OUTPUT_DATE_FORMAT = "%B %d, %Y"  # e.g., "January 15, 2025"
+    OUTPUT_DATETIME_FORMAT = "%B %d, %Y at %I:%M %p"  # e.g., "January 15, 2025 at 03:30 PM"
+
+    # Common date formats to try parsing
+    DATE_FORMATS = [
+        # ISO 8601
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+        # Common formats with full month names
+        "%B %d, %Y",
+        "%B %dth, %Y",
+        "%B %dst, %Y",
+        "%B %dnd, %Y",
+        "%B %drd, %Y",
+        # Common formats with abbreviated month names
+        "%d %b %Y",
+        "%b %d, %Y",
+        "%d %B %Y",
+        # US formats
+        "%m/%d/%Y",
+        "%m-%d-%Y",
+        # European formats
+        "%d/%m/%Y",
+        "%d-%m-%Y",
+    ]
+
+    @staticmethod
+    def parse_date(date_str: str) -> datetime | None:
+        """Parse a date string into a datetime object.
+
+        Args:
+            date_str: Date string in various formats
+
+        Returns:
+            datetime object or None if parsing fails
+        """
+        if not date_str or date_str == "Unknown time":
+            return None
+
+        # Clean the string
+        date_str = date_str.strip()
+
+        # Remove ordinal suffixes (1st, 2nd, 3rd, 4th, etc.) for better parsing
+        date_str = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', date_str)
+
+        # Try each format
+        for fmt in UpdateNormalizer.DATE_FORMATS:
+            try:
+                return datetime.strptime(date_str, fmt)
+            except (ValueError, AttributeError):
+                continue
+
+        # If all parsing fails, try dateutil as fallback (if available)
+        try:
+            from dateutil import parser
+            return parser.parse(date_str, fuzzy=True)
+        except (ImportError, ValueError, AttributeError):
+            pass
+
+        return None
+
+    @staticmethod
+    def format_date(dt: datetime | None, include_time: bool = False) -> str:
+        """Format a datetime object to a consistent string format.
+
+        Args:
+            dt: datetime object to format
+            include_time: Whether to include time in output
+
+        Returns:
+            Formatted date string or "Unknown date" if dt is None
+        """
+        if dt is None:
+            return "Unknown date"
+
+        if include_time and dt.hour != 0 and dt.minute != 0:
+            return dt.strftime(UpdateNormalizer.OUTPUT_DATETIME_FORMAT)
+        else:
+            return dt.strftime(UpdateNormalizer.OUTPUT_DATE_FORMAT)
+
+    @staticmethod
+    def normalize_text(text: str, max_length: int | None = None) -> str:
+        """Normalize text content.
+
+        Args:
+            text: Text to normalize
+            max_length: Maximum length (adds ellipsis if exceeded)
+
+        Returns:
+            Normalized text
+        """
+        if not text:
+            return ""
+
+        # Strip HTML tags if present
+        text = re.sub(r'<[^>]+>', '', text)
+
+        # Normalize whitespace
+        text = re.sub(r'\s+', ' ', text)
+        text = text.strip()
+
+        # Truncate if needed
+        if max_length and len(text) > max_length:
+            text = text[:max_length].rstrip() + "..."
+
+        return text
+
+    @staticmethod
+    def strip_date_from_title(title: str) -> str:
+        """Strip date patterns from title (common in forum posts).
+
+        Removes date patterns like:
+        - [July 25th, 2025] Title → Title
+        - (July 25, 2025) Title → Title
+        - July 25, 2025 - Title → Title
+        - Title - July 25, 2025 → Title
+
+        Args:
+            title: Title to clean
+
+        Returns:
+            Title with date patterns removed
+        """
+        if not title:
+            return title
+
+        # Pattern 1: [Date] or (Date) at the start
+        # Matches: [anything with 4-digit year], (anything with 4-digit year)
+        title = re.sub(r'^[\[\(][^\]\)]*\d{4}[^\]\)]*[\]\)]\s*[-|:–—]?\s*', '', title)
+
+        # Pattern 2: Date followed by separator at start
+        # Matches: Month Day(ordinal), Year - or similar
+        # Captures common month names (full or abbreviated) + day + year + separator
+        title = re.sub(
+            r'^(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|'
+            r'Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+'
+            r'\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\s*[-|:–—]\s*',
+            '', title, flags=re.IGNORECASE
+        )
+
+        # Pattern 3: Separator followed by date at end
+        # Matches: - July 25, 2025 at end
+        title = re.sub(
+            r'\s*[-|:–—]\s*(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|'
+            r'Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+'
+            r'\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}$',
+            '', title, flags=re.IGNORECASE
+        )
+
+        # Pattern 4: Simple year in brackets/parens at start or end
+        title = re.sub(r'^[\[\(]\d{4}[\]\)]\s*', '', title)
+        title = re.sub(r'\s*[\[\(]\d{4}[\]\)]$', '', title)
+
+        return title.strip()
+
+    @staticmethod
+    def normalize_url(url: str, base_url: str) -> str:
+        """Normalize and make URLs absolute.
+
+        Args:
+            url: URL to normalize (may be relative)
+            base_url: Base URL to resolve relative URLs against
+
+        Returns:
+            Absolute normalized URL
+        """
+        if not url:
+            return base_url
+
+        # Make absolute if relative
+        url = urljoin(base_url, url)
+
+        # Ensure valid scheme
+        parsed = urlparse(url)
+        if not parsed.scheme:
+            url = "https://" + url
+
+        return url
+
+
 @dataclass
 class ServerUpdate:
-    """Represents a server update/news post."""
+    """Represents a server update/news post with normalized data."""
 
     title: str
     url: str
-    time: str
+    time_raw: str  # Raw time string from source
     preview: str = ""
+    _parsed_date: datetime | None = field(default=None, init=False, repr=False)
+
+    def __post_init__(self):
+        """Parse and normalize data after initialization."""
+        # Parse the date
+        self._parsed_date = UpdateNormalizer.parse_date(self.time_raw)
+
+        # Normalize text fields
+        self.title = UpdateNormalizer.normalize_text(self.title)
+        self.preview = UpdateNormalizer.normalize_text(self.preview)
+
+        # Strip date patterns from title (common in forum posts like RuneX)
+        self.title = UpdateNormalizer.strip_date_from_title(self.title)
+
+    @property
+    def time(self) -> str:
+        """Get formatted time string.
+
+        Returns:
+            Consistently formatted date string
+        """
+        # Determine if original had time component
+        has_time = ':' in self.time_raw or 'T' in self.time_raw
+        return UpdateNormalizer.format_date(self._parsed_date, include_time=has_time)
+
+    @property
+    def date(self) -> datetime | None:
+        """Get parsed datetime object.
+
+        Returns:
+            Parsed datetime or None if parsing failed
+        """
+        return self._parsed_date
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for display.
 
         Returns:
-            Dictionary representation
+            Dictionary representation with normalized data
         """
         return {
             "title": self.title,
             "url": self.url,
-            "time": self.time,
+            "time": self.time,  # Use the formatted property
             "preview": self.preview,
         }
 
@@ -248,7 +469,7 @@ class UpdatesScraper:
             limit: Maximum number of updates to return
 
         Returns:
-            List of ServerUpdate objects
+            List of ServerUpdate objects with normalized data
         """
         items = soup.select(item_selector)
         updates = []
@@ -257,7 +478,7 @@ class UpdatesScraper:
             try:
                 # Extract title
                 title_elem = item.select_one(title_selector) if title_selector else None
-                title = title_elem.get_text(strip=True) if title_elem else "Untitled"
+                title = title_elem.get_text(strip=True) if title_elem else ""
 
                 # Extract link
                 link = ""
@@ -265,12 +486,9 @@ class UpdatesScraper:
                     link_elem = item.select_one(link_selector)
                     if link_elem and link_elem.get("href"):
                         link = link_elem["href"]
-                        # Make absolute URL if relative
-                        if link.startswith("/"):
-                            url_parts = base_url.split('/')
-                            link = f"{url_parts[0]}//{url_parts[2]}{link}"
-                        elif not link.startswith("http"):
-                            link = f"{base_url.rstrip('/')}/{link.lstrip('/')}"
+
+                # Normalize URL
+                link = UpdateNormalizer.normalize_url(link, base_url)
 
                 # Extract time
                 time_elem = item.select_one(time_selector) if time_selector else None
@@ -283,11 +501,28 @@ class UpdatesScraper:
                 preview_elem = item.select_one(preview_selector) if preview_selector else None
                 preview = preview_elem.get_text(strip=True) if preview_elem else ""
 
+                # Handle cases where title is empty or is the same as date
+                # (e.g., Vidyascape where the date is used as the header)
+                if not title or title == time_str:
+                    # Use first meaningful line of preview as title if available
+                    if preview:
+                        # Split preview into lines and find first meaningful line
+                        lines = [l.strip() for l in preview.split('\n') if l.strip()]
+                        if lines:
+                            first_line = lines[0]
+                            # Use first line as title (truncate if too long)
+                            title = first_line if len(first_line) <= 60 else first_line[:57] + "..."
+                        else:
+                            title = "Patch Notes"
+                    else:
+                        title = "Patch Notes"
+
+                # Create update (normalization happens in __post_init__)
                 updates.append(
                     ServerUpdate(
                         title=title,
-                        url=link or base_url,
-                        time=time_str,
+                        url=link,
+                        time_raw=time_str,
                         preview=preview,
                     )
                 )
@@ -312,6 +547,8 @@ class UpdatesScraper:
         forum_mode: bool = False,
         forum_pagination_selector: str = ".ipsPagination_next",
         forum_page_limit: int = 1,
+        fetch_thread_content: bool = False,
+        thread_content_selector: str = "",
     ) -> list[ServerUpdate]:
         """Fetch updates from a website.
 
@@ -346,6 +583,8 @@ class UpdatesScraper:
                 page_limit=forum_page_limit,
                 thread_limit=limit,
                 use_js=use_js,
+                fetch_thread_content=fetch_thread_content,
+                thread_content_selector=thread_content_selector,
             )
 
         # Dropdown mode requires JavaScript
@@ -378,6 +617,30 @@ class UpdatesScraper:
             print(f"Error parsing updates: {e}")
             return []
 
+    def _fetch_thread_content(self, thread_url: str, content_selector: str) -> str:
+        """Fetch content from a forum thread page.
+
+        Args:
+            thread_url: URL of the thread
+            content_selector: CSS selector for the post content
+
+        Returns:
+            Thread content as string
+        """
+        try:
+            response = self.session.get(thread_url, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.content, "html.parser")
+
+            # Get the first post content
+            content_elem = soup.select_one(content_selector)
+            if content_elem:
+                return content_elem.get_text(strip=True)
+            return ""
+        except Exception as e:
+            print(f"Error fetching thread content from {thread_url}: {e}")
+            return ""
+
     def fetch_forum_threads(
         self,
         url: str,
@@ -390,6 +653,8 @@ class UpdatesScraper:
         page_limit: int = 1,
         thread_limit: int = 20,
         use_js: bool = False,
+        fetch_thread_content: bool = False,
+        thread_content_selector: str = "",
     ) -> list[ServerUpdate]:
         """Fetch updates from forum threads across multiple pages.
 
@@ -404,6 +669,8 @@ class UpdatesScraper:
             page_limit: Maximum number of pages to scrape
             thread_limit: Maximum total number of threads to return
             use_js: Whether to use Playwright for JavaScript-rendered forums
+            fetch_thread_content: Whether to fetch full content from thread pages
+            thread_content_selector: CSS selector for content within thread page
 
         Returns:
             List of ServerUpdate objects representing forum threads
@@ -445,7 +712,7 @@ class UpdatesScraper:
                     try:
                         # Extract title
                         title_elem = thread.select_one(title_selector) if title_selector else None
-                        title = title_elem.get_text(strip=True) if title_elem else "Untitled"
+                        title = title_elem.get_text(strip=True) if title_elem else ""
 
                         # Extract link
                         link = ""
@@ -453,12 +720,9 @@ class UpdatesScraper:
                             link_elem = thread.select_one(link_selector)
                             if link_elem and link_elem.get("href"):
                                 link = link_elem["href"]
-                                # Make absolute URL if relative
-                                if link.startswith("/"):
-                                    url_parts = url.split('/')
-                                    link = f"{url_parts[0]}//{url_parts[2]}{link}"
-                                elif not link.startswith("http"):
-                                    link = f"{url.rstrip('/')}/{link.lstrip('/')}"
+
+                        # Normalize URL
+                        link = UpdateNormalizer.normalize_url(link, current_url)
 
                         # Extract time
                         time_elem = thread.select_one(time_selector) if time_selector else None
@@ -473,11 +737,34 @@ class UpdatesScraper:
                             preview_elem = thread.select_one(preview_selector)
                             preview = preview_elem.get_text(strip=True) if preview_elem else ""
 
+                        # Fetch full thread content if enabled
+                        if fetch_thread_content and thread_content_selector and link:
+                            print(f"Fetching thread content from: {link}")
+                            thread_content = self._fetch_thread_content(link, thread_content_selector)
+                            if thread_content:
+                                preview = thread_content
+
+                        # Handle cases where title is empty or is the same as date
+                        if not title or title == time_str:
+                            # Use first meaningful line of preview as title if available
+                            if preview:
+                                # Split preview into lines and find first meaningful line
+                                lines = [l.strip() for l in preview.split('\n') if l.strip()]
+                                if lines:
+                                    first_line = lines[0]
+                                    # Use first line as title (truncate if too long)
+                                    title = first_line if len(first_line) <= 60 else first_line[:57] + "..."
+                                else:
+                                    title = "Patch Notes"
+                            else:
+                                title = "Patch Notes"
+
+                        # Create update (normalization happens in __post_init__)
                         all_threads.append(
                             ServerUpdate(
                                 title=title,
-                                url=link or current_url,
-                                time=time_str,
+                                url=link,
+                                time_raw=time_str,
                                 preview=preview,
                             )
                         )
@@ -540,10 +827,13 @@ class UpdatesScraper:
             for item in items:
                 try:
                     title = item.find("title")
-                    title_text = title.get_text(strip=True) if title else "Untitled"
+                    title_text = title.get_text(strip=True) if title else ""
 
                     link = item.find("link")
-                    link_text = link.get_text(strip=True) if link else rss_url
+                    link_text = link.get_text(strip=True) if link else ""
+
+                    # Normalize URL
+                    link_text = UpdateNormalizer.normalize_url(link_text, rss_url)
 
                     pub_date = item.find("pubDate")
                     time_str = pub_date.get_text(strip=True) if pub_date else "Unknown time"
@@ -551,15 +841,30 @@ class UpdatesScraper:
                     description = item.find("description")
                     preview = ""
                     if description:
-                        # Strip HTML from description
-                        desc_soup = BeautifulSoup(description.get_text(), "html.parser")
-                        preview = desc_soup.get_text(strip=True)
+                        # Get description text (HTML will be stripped by normalizer)
+                        preview = description.get_text()
 
+                    # Handle cases where title is empty or is the same as date
+                    if not title_text or title_text == time_str:
+                        # Use first meaningful line of preview as title if available
+                        if preview:
+                            # Split preview into lines and find first meaningful line
+                            lines = [l.strip() for l in preview.split('\n') if l.strip()]
+                            if lines:
+                                first_line = lines[0]
+                                # Use first line as title (truncate if too long)
+                                title_text = first_line if len(first_line) <= 60 else first_line[:57] + "..."
+                            else:
+                                title_text = "Patch Notes"
+                        else:
+                            title_text = "Patch Notes"
+
+                    # Create update (normalization happens in __post_init__)
                     updates.append(
                         ServerUpdate(
                             title=title_text,
                             url=link_text,
-                            time=time_str,
+                            time_raw=time_str,
                             preview=preview,
                         )
                     )
