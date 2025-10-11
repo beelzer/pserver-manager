@@ -26,6 +26,9 @@ def _fetch_updates(
     fetch_thread_content: bool,
     thread_content_selector: str,
     auto_detect_date: bool,
+    wiki_mode: bool,
+    wiki_update_link_selector: str,
+    wiki_content_selector: str,
 ) -> list[dict]:
     """Fetch updates from a URL (runs in background thread).
 
@@ -45,6 +48,9 @@ def _fetch_updates(
         forum_pagination_selector: CSS selector for next page link in forum mode
         forum_page_limit: Maximum number of forum pages to scrape
         auto_detect_date: If True, scan update content for dates if time selector fails
+        wiki_mode: Whether to scrape MediaWiki-based updates
+        wiki_update_link_selector: CSS selector for update page links in wiki mode
+        wiki_content_selector: CSS selector for content within wiki update pages
 
     Returns:
         List of update dictionaries
@@ -71,6 +77,9 @@ def _fetch_updates(
             fetch_thread_content=fetch_thread_content,
             thread_content_selector=thread_content_selector,
             auto_detect_date=auto_detect_date,
+            wiki_mode=wiki_mode,
+            wiki_update_link_selector=wiki_update_link_selector,
+            wiki_content_selector=wiki_content_selector,
         )
 
     # Convert to dictionaries for easier handling
@@ -101,6 +110,9 @@ class UpdatesFetchHelper(BackgroundHelper[list[dict]]):
         fetch_thread_content: bool = False,
         thread_content_selector: str = "",
         auto_detect_date: bool = False,
+        wiki_mode: bool = False,
+        wiki_update_link_selector: str = "a[href*='/wiki/Updates/']",
+        wiki_content_selector: str = ".mw-parser-output",
     ) -> None:
         """Start fetching updates in background.
 
@@ -117,6 +129,9 @@ class UpdatesFetchHelper(BackgroundHelper[list[dict]]):
             fetch_thread_content: Whether to fetch full content from thread pages
             thread_content_selector: CSS selector for content within thread page
             auto_detect_date: If True, scan update content for dates if time selector fails
+            wiki_mode: Whether to scrape MediaWiki-based updates
+            wiki_update_link_selector: CSS selector for update page links in wiki mode
+            wiki_content_selector: CSS selector for content within wiki update pages
         """
         # Default selectors
         if selectors is None:
@@ -141,6 +156,9 @@ class UpdatesFetchHelper(BackgroundHelper[list[dict]]):
             fetch_thread_content=fetch_thread_content,
             thread_content_selector=thread_content_selector,
             auto_detect_date=auto_detect_date,
+            wiki_mode=wiki_mode,
+            wiki_update_link_selector=wiki_update_link_selector,
+            wiki_content_selector=wiki_content_selector,
         )
 
     def stop_fetching(self) -> None:

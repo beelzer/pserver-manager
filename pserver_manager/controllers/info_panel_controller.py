@@ -81,6 +81,9 @@ class InfoPanelController(QObject):
                 fetch_thread_content=game.updates_fetch_thread_content,
                 thread_content_selector=game.updates_thread_content_selector,
                 auto_detect_date=game.data.get('updates_auto_detect_date', False),
+                wiki_mode=game.updates_wiki_mode,
+                wiki_update_link_selector=game.updates_wiki_link_selector,
+                wiki_content_selector=game.updates_wiki_content_selector,
             )
         else:
             self._info_panel.set_updates_url("")
@@ -166,6 +169,9 @@ class InfoPanelController(QObject):
             fetch_thread_content=server.updates_fetch_thread_content,
             thread_content_selector=server.updates_thread_content_selector,
             auto_detect_date=server.data.get('updates_auto_detect_date', False),
+            wiki_mode=server.updates_wiki_mode,
+            wiki_update_link_selector=server.updates_wiki_link_selector,
+            wiki_content_selector=server.updates_wiki_content_selector,
             force=True,
         )
         self._notifications.info("Refreshing", f"Fetching updates for {server.name}...")
@@ -193,6 +199,9 @@ class InfoPanelController(QObject):
             fetch_thread_content=game.updates_fetch_thread_content,
             thread_content_selector=game.updates_thread_content_selector,
             auto_detect_date=getattr(game, 'updates_auto_detect_date', False),
+            wiki_mode=game.updates_wiki_mode,
+            wiki_update_link_selector=game.updates_wiki_link_selector,
+            wiki_content_selector=game.updates_wiki_content_selector,
             force=True,
         )
         self._notifications.info("Refreshing", "Fetching latest updates...")
@@ -211,6 +220,9 @@ class InfoPanelController(QObject):
         fetch_thread_content: bool = False,
         thread_content_selector: str = "",
         auto_detect_date: bool = False,
+        wiki_mode: bool = False,
+        wiki_update_link_selector: str = "a[href*='/wiki/Updates/']",
+        wiki_content_selector: str = ".mw-parser-output",
         force: bool = False,
     ) -> None:
         """Fetch updates with cache checking.
@@ -228,6 +240,9 @@ class InfoPanelController(QObject):
             fetch_thread_content: Whether to fetch full content from thread pages
             thread_content_selector: CSS selector for content within thread page
             auto_detect_date: If True, scan update content for dates if time selector fails
+            wiki_mode: Whether to scrape MediaWiki-based updates
+            wiki_update_link_selector: CSS selector for update page links in wiki mode
+            wiki_content_selector: CSS selector for content within wiki update pages
             force: If True, bypass cache
         """
         # Check cache unless force refresh
@@ -251,6 +266,9 @@ class InfoPanelController(QObject):
             fetch_thread_content=fetch_thread_content,
             thread_content_selector=thread_content_selector,
             auto_detect_date=auto_detect_date,
+            wiki_mode=wiki_mode,
+            wiki_update_link_selector=wiki_update_link_selector,
+            wiki_content_selector=wiki_content_selector,
         )
 
     def _on_reddit_fetched(self, posts: list) -> None:

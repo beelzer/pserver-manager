@@ -14,6 +14,10 @@ rates: Custom
 population: High
 language: English
 description: A popular Old School RuneScape PvP server
+updates_url: https://wiki.ferox.ps/
+updates_wiki_mode: true
+updates_wiki_link_selector: "a[href*='/wiki/Updates/']"
+updates_wiki_content_selector: ".mw-parser-output"
 downloads:
   - name: Windows (64-bit)
     url: https://ferox.ps/download

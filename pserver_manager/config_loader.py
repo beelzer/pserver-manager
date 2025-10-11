@@ -50,6 +50,9 @@ class GameDefinition:
         self.updates_forum_page_limit: int = data.get("updates_forum_page_limit", 1)
         self.updates_fetch_thread_content: bool = data.get("updates_fetch_thread_content", False)
         self.updates_thread_content_selector: str = data.get("updates_thread_content_selector", "")
+        self.updates_wiki_mode: bool = data.get("updates_wiki_mode", False)
+        self.updates_wiki_link_selector: str = data.get("updates_wiki_link_selector", "a[href*='/wiki/Updates/']")
+        self.updates_wiki_content_selector: str = data.get("updates_wiki_content_selector", ".mw-parser-output")
         self.versions: list[GameVersion] = [
             GameVersion(
                 id=v["id"],
@@ -122,6 +125,9 @@ class ServerDefinition:
         self.updates_forum_page_limit: int = data.get("updates_forum_page_limit", 1)
         self.updates_fetch_thread_content: bool = data.get("updates_fetch_thread_content", False)
         self.updates_thread_content_selector: str = data.get("updates_thread_content_selector", "")
+        self.updates_wiki_mode: bool = data.get("updates_wiki_mode", False)
+        self.updates_wiki_link_selector: str = data.get("updates_wiki_link_selector", "a[href*='/wiki/Updates/']")
+        self.updates_wiki_content_selector: str = data.get("updates_wiki_content_selector", ".mw-parser-output")
         self.scraping: dict[str, Any] | None = data.get("scraping")  # Scraping configuration for player counts/uptime
         self.ping_ms: int = -1  # -1 means not pinged yet
 

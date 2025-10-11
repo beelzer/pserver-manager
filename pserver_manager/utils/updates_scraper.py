@@ -631,6 +631,9 @@ class UpdatesScraper:
         fetch_thread_content: bool = False,
         thread_content_selector: str = "",
         auto_detect_date: bool = False,
+        wiki_mode: bool = False,
+        wiki_update_link_selector: str = "a[href*='/wiki/Updates/']",
+        wiki_content_selector: str = ".mw-parser-output",
     ) -> list[ServerUpdate]:
         """Fetch updates from a website.
 
@@ -649,10 +652,22 @@ class UpdatesScraper:
             forum_pagination_selector: CSS selector for next page link in forum mode
             forum_page_limit: Maximum number of forum pages to scrape
             auto_detect_date: If True, scan update content for dates if time selector fails
+            wiki_mode: Whether to scrape MediaWiki-based updates
+            wiki_update_link_selector: CSS selector for update page links in wiki mode
+            wiki_content_selector: CSS selector for content within wiki update pages
 
         Returns:
             List of ServerUpdate objects
         """
+        # Wiki mode
+        if wiki_mode:
+            return self.fetch_wiki_updates(
+                url,
+                update_link_selector=wiki_update_link_selector,
+                update_content_selector=wiki_content_selector,
+                limit=limit,
+            )
+
         # Forum mode
         if forum_mode:
             return self.fetch_forum_threads(
@@ -964,4 +979,106 @@ class UpdatesScraper:
             return []
         except Exception as e:
             print(f"Error parsing RSS feed: {e}")
+            return []
+
+    def fetch_wiki_updates(
+        self,
+        wiki_url: str,
+        update_link_selector: str = "a[href*='/wiki/Updates/']",
+        update_content_selector: str = ".mw-parser-output",
+        limit: int = 10,
+        title_from_url: bool = True,
+    ) -> list[ServerUpdate]:
+        """Fetch updates from a MediaWiki-based update listing.
+
+        Args:
+            wiki_url: Wiki main page URL containing update links
+            update_link_selector: CSS selector for update page links
+            update_content_selector: CSS selector for content within update pages
+            limit: Maximum number of updates to return
+            title_from_url: Extract date from URL path (e.g., Updates/2025-09-26)
+
+        Returns:
+            List of ServerUpdate objects
+        """
+        try:
+            # Fetch the main wiki page with update links
+            response = self.session.get(wiki_url, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.content, "html.parser")
+
+            # Find all update links
+            update_links = soup.select(update_link_selector)
+            print(f"Found {len(update_links)} update links on wiki page")
+
+            updates = []
+            for link in update_links[:limit]:
+                try:
+                    update_url = link.get("href", "")
+                    if not update_url:
+                        continue
+
+                    # Make absolute URL
+                    update_url = UpdateNormalizer.normalize_url(update_url, wiki_url)
+
+                    # Extract date from URL if enabled (e.g., /wiki/Updates/2025-09-26)
+                    time_str = "Unknown time"
+                    if title_from_url:
+                        # Extract date from URL path
+                        url_match = re.search(r'/Updates/(\d{4}-\d{1,2}-\d{1,2})', update_url)
+                        if url_match:
+                            time_str = url_match.group(1)
+
+                    # Get the link text as potential title
+                    link_text = link.get_text(strip=True)
+
+                    print(f"Fetching wiki update from: {update_url}")
+
+                    # Fetch the update page content
+                    update_response = self.session.get(update_url, timeout=10)
+                    update_response.raise_for_status()
+                    update_soup = BeautifulSoup(update_response.content, "html.parser")
+
+                    # Get the main content
+                    content_elem = update_soup.select_one(update_content_selector)
+                    if not content_elem:
+                        print(f"Warning: No content found for {update_url}")
+                        continue
+
+                    # Remove table of contents and navigation elements
+                    for toc in content_elem.select("#toc, .toc, .mw-editsection"):
+                        toc.decompose()
+
+                    # Get all text content
+                    preview = content_elem.get_text(separator=' ', strip=True)
+
+                    # Try to find a better title from the first heading in content
+                    first_heading = content_elem.select_one("h1, h2")
+                    if first_heading:
+                        title = first_heading.get_text(strip=True)
+                    else:
+                        # Fallback to link text
+                        title = link_text if link_text else "Update"
+
+                    # Create update (normalization happens in __post_init__)
+                    updates.append(
+                        ServerUpdate(
+                            title=title,
+                            url=update_url,
+                            time_raw=time_str,
+                            preview=preview,
+                        )
+                    )
+
+                except Exception as e:
+                    print(f"Error fetching wiki update page: {e}")
+                    continue
+
+            return updates
+
+        except requests.RequestException as e:
+            print(f"Error fetching wiki main page: {e}")
+            return []
+        except Exception as e:
+            print(f"Error parsing wiki updates: {e}")
             return []

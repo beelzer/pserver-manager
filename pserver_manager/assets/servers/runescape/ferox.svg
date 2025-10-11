@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8d36b"/>
+      <stop offset="60%" stop-color="#c28f2a"/>
+      <stop offset="100%" stop-color="#8b5b1d"/>
+    </linearGradient>
+    <filter id="b" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="b"/>
+    </filter>
+  </defs>
+  <!-- background transparent -->
+  <g transform="translate(0,0)">
+    <path d="M 20.00 0.00 L 28.00 11.00 L 28.00 47.00 L 20.00 56.00 L 28.00 65.00 L 28.00 116.00 L 20.00 127.00 L 60.00 115.00 L 60.00 111.00 L 54.00 105.00 L 51.00 98.00 L 51.00 63.00 L 72.00 62.00 L 82.00 67.00 L 90.00 43.00 L 79.00 48.00 L 52.00 48.00 L 51.00 13.00 L 84.00 12.00 L 89.00 14.00 L 94.00 19.00 L 96.00 25.00 L 100.00 21.00 L 108.00 0.00 L 21.00 0.00 Z" fill="url(#g)" stroke="#5a3b15" stroke-width="2" stroke-linejoin="round" filter="none"/>
+    <image href="ferox.png" x="0" y="0" width="128" height="128" opacity="0" />
+  </g>
+</svg>

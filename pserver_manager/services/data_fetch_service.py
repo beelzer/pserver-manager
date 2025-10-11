@@ -76,6 +76,9 @@ class DataFetchService(QObject):
         fetch_thread_content: bool = False,
         thread_content_selector: str = "",
         auto_detect_date: bool = False,
+        wiki_mode: bool = False,
+        wiki_update_link_selector: str = "a[href*='/wiki/Updates/']",
+        wiki_content_selector: str = ".mw-parser-output",
     ) -> None:
         """Fetch server updates from a URL.
 
@@ -92,6 +95,9 @@ class DataFetchService(QObject):
             fetch_thread_content: Whether to fetch full content from thread pages
             thread_content_selector: CSS selector for content within thread page
             auto_detect_date: If True, scan update content for dates if time selector fails
+            wiki_mode: Whether to scrape MediaWiki-based updates
+            wiki_update_link_selector: CSS selector for update page links in wiki mode
+            wiki_content_selector: CSS selector for content within wiki update pages
         """
         self._updates_helper.start_fetching(
             url=url,
@@ -106,6 +112,9 @@ class DataFetchService(QObject):
             fetch_thread_content=fetch_thread_content,
             thread_content_selector=thread_content_selector,
             auto_detect_date=auto_detect_date,
+            wiki_mode=wiki_mode,
+            wiki_update_link_selector=wiki_update_link_selector,
+            wiki_content_selector=wiki_content_selector,
         )
 
     def start_batch_scan(self, servers: list[ServerDefinition], max_workers: int = 5) -> None:
