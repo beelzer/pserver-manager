@@ -18,6 +18,13 @@ try:
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
 
+# Optional cloudscraper import for Cloudflare bypass
+try:
+    import cloudscraper
+    CLOUDSCRAPER_AVAILABLE = True
+except ImportError:
+    CLOUDSCRAPER_AVAILABLE = False
+
 
 class UpdateNormalizer:
     """Utilities for normalizing update data to consistent formats."""
@@ -185,6 +192,8 @@ class UpdateNormalizer:
         - (MM/DD/YY) Title → Title
         - July 25, 2025 - Title → Title
         - Title - July 25, 2025 → Title
+        - Title – 09/26/25 → Title (en-dash)
+        - Title - 09/26/25 → Title
 
         Args:
             title: Title to clean
@@ -213,7 +222,7 @@ class UpdateNormalizer:
             '', title, flags=re.IGNORECASE
         )
 
-        # Pattern 4: Separator followed by date at end
+        # Pattern 4: Separator followed by date at end (full month names)
         # Matches: - July 25, 2025 at end
         title = re.sub(
             r'\s*[-|:–—]\s*(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|'
@@ -222,7 +231,11 @@ class UpdateNormalizer:
             '', title, flags=re.IGNORECASE
         )
 
-        # Pattern 5: Simple year in brackets/parens at start or end
+        # Pattern 5: Separator followed by numeric date at end (MM/DD/YY or MM/DD/YYYY)
+        # Matches: - 09/26/25, – 10/04/2025, etc.
+        title = re.sub(r'\s*[-–—]\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$', '', title)
+
+        # Pattern 6: Simple year in brackets/parens at start or end
         title = re.sub(r'^[\[\(]\d{4}[\]\)]\s*', '', title)
         title = re.sub(r'\s*[\[\(]\d{4}[\]\)]$', '', title)
 
@@ -312,15 +325,24 @@ class ServerUpdate:
 class UpdatesScraper:
     """Scrapes server updates from websites."""
 
-    def __init__(self, user_agent: str = "PServerManager/1.0"):
+    def __init__(self, user_agent: str = "PServerManager/1.0", use_cloudscraper: bool = True):
         """Initialize updates scraper.
 
         Args:
             user_agent: User agent string for requests
+            use_cloudscraper: Whether to use cloudscraper for Cloudflare bypass
         """
         self.user_agent = user_agent
-        self.session = requests.Session()
-        self.session.headers.update({"User-Agent": user_agent})
+
+        # Use cloudscraper if available and requested (handles Cloudflare automatically)
+        if use_cloudscraper and CLOUDSCRAPER_AVAILABLE:
+            self.session = cloudscraper.create_scraper()
+            self.session.headers.update({"User-Agent": user_agent})
+            self.using_cloudscraper = True
+        else:
+            self.session = requests.Session()
+            self.session.headers.update({"User-Agent": user_agent})
+            self.using_cloudscraper = False
 
     def fetch_updates_with_dropdown(
         self,
@@ -666,6 +688,7 @@ class UpdatesScraper:
                 update_link_selector=wiki_update_link_selector,
                 update_content_selector=wiki_content_selector,
                 limit=limit,
+                use_js=use_js,
             )
 
         # Forum mode
@@ -988,6 +1011,7 @@ class UpdatesScraper:
         update_content_selector: str = ".mw-parser-output",
         limit: int = 10,
         title_from_url: bool = True,
+        use_js: bool = False,
     ) -> list[ServerUpdate]:
         """Fetch updates from a MediaWiki-based update listing.
 
@@ -997,22 +1021,39 @@ class UpdatesScraper:
             update_content_selector: CSS selector for content within update pages
             limit: Maximum number of updates to return
             title_from_url: Extract date from URL path (e.g., Updates/2025-09-26)
+            use_js: Whether to use Playwright for JavaScript-rendered pages (fallback if cloudscraper fails)
 
         Returns:
             List of ServerUpdate objects
         """
         try:
             # Fetch the main wiki page with update links
-            response = self.session.get(wiki_url, timeout=10)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.content, "html.parser")
+            # Cloudscraper (if enabled) will handle Cloudflare automatically
+            if use_js:
+                if not PLAYWRIGHT_AVAILABLE:
+                    print("Playwright not available. Install with: pip install playwright")
+                    return []
+
+                with sync_playwright() as p:
+                    browser = p.chromium.launch(headless=True)
+                    page = browser.new_page()
+                    # Longer timeout for Cloudflare challenges
+                    page.goto(wiki_url, wait_until='networkidle', timeout=30000)
+                    page.wait_for_timeout(3000)  # Extra wait for any challenges to complete
+                    content = page.content()
+                    browser.close()
+                    soup = BeautifulSoup(content, "html.parser")
+            else:
+                response = self.session.get(wiki_url, timeout=30)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.content, "html.parser")
 
             # Find all update links
             update_links = soup.select(update_link_selector)
             print(f"Found {len(update_links)} update links on wiki page")
 
             updates = []
-            for link in update_links[:limit]:
+            for idx, link in enumerate(update_links[:limit]):
                 try:
                     update_url = link.get("href", "")
                     if not update_url:
@@ -1035,9 +1076,19 @@ class UpdatesScraper:
                     print(f"Fetching wiki update from: {update_url}")
 
                     # Fetch the update page content
-                    update_response = self.session.get(update_url, timeout=10)
-                    update_response.raise_for_status()
-                    update_soup = BeautifulSoup(update_response.content, "html.parser")
+                    if use_js:
+                        with sync_playwright() as p:
+                            browser = p.chromium.launch(headless=True)
+                            page = browser.new_page()
+                            page.goto(update_url, wait_until='networkidle', timeout=30000)
+                            page.wait_for_timeout(2000)
+                            update_content = page.content()
+                            browser.close()
+                            update_soup = BeautifulSoup(update_content, "html.parser")
+                    else:
+                        update_response = self.session.get(update_url, timeout=30)
+                        update_response.raise_for_status()
+                        update_soup = BeautifulSoup(update_response.content, "html.parser")
 
                     # Get the main content
                     content_elem = update_soup.select_one(update_content_selector)

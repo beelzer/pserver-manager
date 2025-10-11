@@ -273,7 +273,7 @@ class BatchScanWorker(QObject):
                                 thread_content_selector=server.updates_thread_content_selector,
                             )
                         else:
-                            # Regular webpage scraping
+                            # Regular webpage scraping (including wiki mode)
                             updates = updates_scraper.fetch_updates(
                                 url=server.updates_url,
                                 use_js=server.updates_use_js,
@@ -286,6 +286,9 @@ class BatchScanWorker(QObject):
                                 dropdown_selector=server.updates_selectors.get("dropdown"),
                                 max_dropdown_options=server.updates_max_dropdown_options,
                                 auto_detect_date=server.data.get('updates_auto_detect_date', False),
+                                wiki_mode=server.data.get('updates_wiki_mode', False),
+                                wiki_update_link_selector=server.data.get('updates_wiki_link_selector', "a[href*='/wiki/Updates/']"),
+                                wiki_content_selector=server.data.get('updates_wiki_content_selector', ".mw-parser-output"),
                             )
                         result.updates = updates
                         print(f"[BatchScan] {server.name}: Got {len(updates)} updates")
