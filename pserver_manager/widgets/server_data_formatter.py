@@ -69,15 +69,15 @@ class ServerDataFormatter:
             return "-"
 
         if status == ServerStatus.ONLINE and ping_ms >= 0:
-            return f"🟢 {ping_ms}ms"
+            return f"{ping_ms}ms"
         elif status == ServerStatus.OFFLINE:
-            return "🔴 Offline"
+            return "Offline"
         elif status == ServerStatus.MAINTENANCE:
-            return "🟡 Maintenance"
+            return "Maintenance"
         elif status == ServerStatus.STARTING:
-            return "🟡 Starting"
+            return "Starting"
         else:
-            return f"● {status.value}"
+            return status.value
 
     @staticmethod
     def set_status_color(
@@ -99,25 +99,30 @@ class ServerDataFormatter:
             if app and hasattr(app, "theme_manager"):
                 theme = app.theme_manager.get_current_theme()
                 if theme and theme.tokens:
-                    tokens = theme.tokens.semantic
-
-                    # Determine color based on status and ping
+                    # Determine color based on status and ping using custom tokens
                     if status == ServerStatus.OFFLINE:
-                        color = tokens.feedback_error
+                        # Use custom ping.offline token, fallback to semantic
+                        color = theme.tokens.get_custom("ping.offline", theme.tokens.semantic.feedback_error)
                     elif status == ServerStatus.MAINTENANCE:
-                        color = tokens.feedback_warning
+                        # Use custom server_status.maintenance or warning
+                        color = theme.tokens.get_custom("server_status.maintenance", theme.tokens.semantic.feedback_warning)
                     elif status == ServerStatus.STARTING:
-                        color = tokens.feedback_info
+                        # Use custom server_status.starting or info
+                        color = theme.tokens.get_custom("server_status.starting", theme.tokens.semantic.feedback_info)
                     elif status == ServerStatus.ONLINE:
-                        # Color based on ping latency
-                        if ping_ms < 150:
-                            color = tokens.feedback_success
-                        elif ping_ms < 250:
-                            color = tokens.feedback_warning
+                        # Color based on ping latency using custom ping tokens
+                        if ping_ms < 50:
+                            color = theme.tokens.get_custom("ping.excellent", theme.tokens.semantic.feedback_success)
+                        elif ping_ms < 100:
+                            color = theme.tokens.get_custom("ping.good", theme.tokens.semantic.feedback_success)
+                        elif ping_ms < 200:
+                            color = theme.tokens.get_custom("ping.fair", theme.tokens.semantic.feedback_warning)
+                        elif ping_ms < 300:
+                            color = theme.tokens.get_custom("ping.poor", theme.tokens.semantic.feedback_warning)
                         else:
-                            color = tokens.feedback_error
+                            color = theme.tokens.get_custom("ping.bad", theme.tokens.semantic.feedback_error)
                     else:
-                        color = tokens.fg_primary
+                        color = theme.tokens.semantic.fg_primary
 
                     # Set font color for this column
                     item.setForeground(column, QBrush(QColor(color)))

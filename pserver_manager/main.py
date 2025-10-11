@@ -390,6 +390,13 @@ class MainWindow(BaseWindow):
 
         theme_manager.theme_changed.connect(update_theme_menu)
 
+        # Refresh server table when theme changes to update ping colors
+        def refresh_on_theme_change(new_theme_name: str):
+            if hasattr(self, '_server_table'):
+                self._server_table._refresh_table()
+
+        theme_manager.theme_changed.connect(refresh_on_theme_change)
+
     def _apply_theme(self, theme_name: str) -> None:
         """Apply theme (delegates to controller when available)."""
         if hasattr(self, '_theme_controller'):
