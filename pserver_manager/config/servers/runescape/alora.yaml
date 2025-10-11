@@ -18,6 +18,8 @@ updates_url: https://www.alora.io/forums/forum/14-updates/
 updates_forum_mode: true
 updates_forum_page_limit: 2
 updates_forum_pagination_selector: ".pagination .next a"
+updates_fetch_thread_content: true
+updates_thread_content_selector: ".post.entry-content"
 updates_selectors:
   item: "tr.__topic"
   title: "h4 a.topic_title"

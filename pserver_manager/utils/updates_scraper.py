@@ -181,6 +181,8 @@ class UpdateNormalizer:
         Removes date patterns like:
         - [July 25th, 2025] Title → Title
         - (July 25, 2025) Title → Title
+        - [10/10/25] Title → Title
+        - (MM/DD/YY) Title → Title
         - July 25, 2025 - Title → Title
         - Title - July 25, 2025 → Title
 
@@ -193,11 +195,15 @@ class UpdateNormalizer:
         if not title:
             return title
 
-        # Pattern 1: [Date] or (Date) at the start
+        # Pattern 1: [MM/DD/YY] or [MM/DD/YYYY] or similar numeric dates in brackets/parens at start
+        # Matches: [10/10/25], [10-10-2025], (12/31/24), etc.
+        title = re.sub(r'^[\[\(]\d{1,2}[/-]\d{1,2}[/-]\d{2,4}[\]\)]\s*[-|:–—]?\s*', '', title)
+
+        # Pattern 2: [Date] or (Date) with 4-digit year at the start
         # Matches: [anything with 4-digit year], (anything with 4-digit year)
         title = re.sub(r'^[\[\(][^\]\)]*\d{4}[^\]\)]*[\]\)]\s*[-|:–—]?\s*', '', title)
 
-        # Pattern 2: Date followed by separator at start
+        # Pattern 3: Date followed by separator at start
         # Matches: Month Day(ordinal), Year - or similar
         # Captures common month names (full or abbreviated) + day + year + separator
         title = re.sub(
@@ -207,7 +213,7 @@ class UpdateNormalizer:
             '', title, flags=re.IGNORECASE
         )
 
-        # Pattern 3: Separator followed by date at end
+        # Pattern 4: Separator followed by date at end
         # Matches: - July 25, 2025 at end
         title = re.sub(
             r'\s*[-|:–—]\s*(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|'
@@ -216,7 +222,7 @@ class UpdateNormalizer:
             '', title, flags=re.IGNORECASE
         )
 
-        # Pattern 4: Simple year in brackets/parens at start or end
+        # Pattern 5: Simple year in brackets/parens at start or end
         title = re.sub(r'^[\[\(]\d{4}[\]\)]\s*', '', title)
         title = re.sub(r'\s*[\[\(]\d{4}[\]\)]$', '', title)
 
